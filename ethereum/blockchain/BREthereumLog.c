@@ -3,27 +3,12 @@
 //  BRCore
 //
 //  Created by Ed Gamble on 5/10/18.
-//  Copyright (c) 2018 breadwallet LLC
+//  Copyright © 2018-2019 Breadwinner AG.  All rights reserved.
 //
-//  Permission is hereby granted, free of charge, to any person obtaining a copy
-//  of this software and associated documentation files (the "Software"), to deal
-//  in the Software without restriction, including without limitation the rights
-//  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-//  copies of the Software, and to permit persons to whom the Software is
-//  furnished to do so, subject to the following conditions:
-//
-//  The above copyright notice and this permission notice shall be included in
-//  all copies or substantial portions of the Software.
-//
-//  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-//  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-//  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-//  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-//  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-//  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-//  THE SOFTWARE.
+//  See the LICENSE file at the project root for license information.
+//  See the CONTRIBUTORS file at the project root for a list of contributors.
 
-#include "BRArray.h"
+#include "support/BRArray.h"
 #include "BREthereumLog.h"
 
 /**
@@ -153,27 +138,35 @@ logTopicsCopy (BRArrayOf(BREthereumLogTopic) topics) {
 }
 
 //
-// Ethereum Log
+// Log
 //
-// A log entry, O, is:
 struct BREthereumLogRecord {
     // THIS MUST BE FIRST to support BRSet operations.
+
     /**
-     * The hash - computed from the pair {Transaction-Hash, Receipt-Index} using
+     * The hash - computed from the identifier pair {Transaction-Hash, Receipt-Index} using
      * BREthereumLogStatus
      */
     BREthereumHash hash;
 
-    // a tuple of the logger’s address, Oa;
+    /**
+     * a tuple of the logger’s address, Oa;
+     */
     BREthereumAddress address;
 
-    // a series of 32-byte log topics, Ot;
+    /**
+     * a series of 32-byte log topics, Ot;
+     */
     BRArrayOf(BREthereumLogTopic) topics;
 
-    // and some number of bytes of data, Od
+    /**
+     * and some number of bytes of data, Od
+     */
     BRRlpData data;
 
-    // A unique identifer - derived from the transactionHash and the transactionReceiptIndex
+    /**
+     * A unique identifer - derived from the transactionHash and the transactionReceiptIndex
+     */
     struct {
         /**
          * The hash of the transaction producing this log.  This value *does not* depend on
@@ -189,7 +182,9 @@ struct BREthereumLogRecord {
         size_t transactionReceiptIndex;
     } identifier;
 
-    // status
+    /**
+     * status
+     */
     BREthereumTransactionStatus status;
 };
 
@@ -212,6 +207,9 @@ logCreate (BREthereumAddress address,
 
     log->data = rlpDataCopy(data);
 
+    // Mark the `identifier` as unknown.
+    log->identifier.transactionReceiptIndex = LOG_TRANSACTION_RECEIPT_INDEX_UNKNOWN;
+
     return log;
 }
 
@@ -226,12 +224,17 @@ logInitializeIdentifier (BREthereumLog log,
     log->hash = hashCreateFromData(data);
 }
 
-extern void
+extern BREthereumBoolean
 logExtractIdentifier (BREthereumLog log,
                       BREthereumHash *transactionHash,
                       size_t *transactionReceiptIndex) {
+    if (LOG_TRANSACTION_RECEIPT_INDEX_UNKNOWN == log->identifier.transactionReceiptIndex)
+        return ETHEREUM_BOOLEAN_FALSE;
+
     if (NULL != transactionHash) *transactionHash = log->identifier.transactionHash;
     if (NULL != transactionReceiptIndex) *transactionReceiptIndex = log->identifier.transactionReceiptIndex;
+
+    return ETHEREUM_BOOLEAN_TRUE;
 }
 
 static inline int
@@ -289,6 +292,8 @@ logSetStatus (BREthereumLog log,
 
 extern BREthereumHash
 logGetHash (BREthereumLog log) {
+    // The hash only exists when we've got an identifier; must not be referenced otherwise.
+    assert (LOG_TRANSACTION_RECEIPT_INDEX_UNKNOWN != log->identifier.transactionReceiptIndex);
     return log->hash;
 }
 
@@ -353,47 +358,22 @@ logIsErrored (BREthereumLog log) {
 // Support BRSet
 extern size_t
 logHashValue (const void *l) {
+    assert (LOG_TRANSACTION_RECEIPT_INDEX_UNKNOWN != ((BREthereumLog) l)->identifier.transactionReceiptIndex);
     return hashSetValue(&((BREthereumLog) l)->hash);
 }
 
 // Support BRSet
 extern int
 logHashEqual (const void *l1, const void *l2) {
-    return l1 == l2 || hashSetEqual (&((BREthereumLog) l1)->hash,
-                                     &((BREthereumLog) l2)->hash);
+    if (l1 == l2) return 1;
+
+    assert (LOG_TRANSACTION_RECEIPT_INDEX_UNKNOWN != ((BREthereumLog) l1)->identifier.transactionReceiptIndex);
+    assert (LOG_TRANSACTION_RECEIPT_INDEX_UNKNOWN != ((BREthereumLog) l2)->identifier.transactionReceiptIndex);
+    return hashSetEqual (&((BREthereumLog) l1)->hash,
+                         &((BREthereumLog) l2)->hash);
 }
 
-//
-// Log Topics - RLP Encode/Decode
-//
-static BRRlpItem
-logTopicsRlpEncode (BREthereumLog log,
-                        BRRlpCoder coder) {
-    size_t itemsCount = array_count(log->topics);
-    BRRlpItem items[itemsCount];
-
-    for (int i = 0; i < itemsCount; i++)
-        items[i] = logTopicRlpEncode(log->topics[i], coder);
-
-    return rlpEncodeListItems(coder, items, itemsCount);
-}
-
-static BREthereumLogTopic *
-logTopicsRlpDecode (BRRlpItem item,
-                        BRRlpCoder coder) {
-    size_t itemsCount = 0;
-    const BRRlpItem *items = rlpDecodeList(coder, item, &itemsCount);
-
-    BREthereumLogTopic *topics;
-    array_new(topics, itemsCount);
-
-    for (int i = 0; i < itemsCount; i++) {
-        BREthereumLogTopic topic = logTopicRlpDecode(items[i], coder);
-        array_add(topics, topic);
-    }
-
-    return topics;
-}
+/// MARK: - Release // Copy
 
 extern void
 logRelease (BREthereumLog log) {
@@ -433,9 +413,37 @@ logCopy (BREthereumLog log) {
     return copy;
 }
 
-//
-// Log - RLP Decode
-//
+/// MARK: - RLP Encode/Decode
+
+static BRRlpItem
+logTopicsRlpEncode (BREthereumLog log,
+                    BRRlpCoder coder) {
+    size_t itemsCount = array_count(log->topics);
+    BRRlpItem items[itemsCount];
+
+    for (int i = 0; i < itemsCount; i++)
+        items[i] = logTopicRlpEncode(log->topics[i], coder);
+
+    return rlpEncodeListItems(coder, items, itemsCount);
+}
+
+static BREthereumLogTopic *
+logTopicsRlpDecode (BRRlpItem item,
+                    BRRlpCoder coder) {
+    size_t itemsCount = 0;
+    const BRRlpItem *items = rlpDecodeList(coder, item, &itemsCount);
+
+    BREthereumLogTopic *topics;
+    array_new(topics, itemsCount);
+
+    for (int i = 0; i < itemsCount; i++) {
+        BREthereumLogTopic topic = logTopicRlpDecode(items[i], coder);
+        array_add(topics, topic);
+    }
+
+    return topics;
+}
+
 extern BREthereumLog
 logRlpDecode (BRRlpItem item,
               BREthereumRlpType type,
@@ -452,6 +460,9 @@ logRlpDecode (BRRlpItem item,
 
     log->data = rlpGetData (coder, items[2]); //  rlpDecodeBytes(coder, items[2]);
 
+    // 
+    log->identifier.transactionReceiptIndex = LOG_TRANSACTION_RECEIPT_INDEX_UNKNOWN;
+
     if (RLP_TYPE_ARCHIVE == type) {
         BREthereumHash hash = hashRlpDecode(items[3], coder);
 
@@ -464,9 +475,6 @@ logRlpDecode (BRRlpItem item,
     return log;
 }
 
-//
-// Log - RLP Encode
-//
 extern BRRlpItem
 logRlpEncode(BREthereumLog log,
              BREthereumRlpType type,

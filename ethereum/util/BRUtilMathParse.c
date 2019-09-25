@@ -1,33 +1,19 @@
 //
 //  BBRUtilMathParse.c
-//  breadwallet-core Ethereum
+//  Core Ethereum
 //
 //  Created by Ed Gamble on 3/16/2018.
-//  Copyright (c) 2018 breadwallet LLC
+//  Copyright © 2018-2019 Breadwinner AG.  All rights reserved.
 //
-//  Permission is hereby granted, free of charge, to any person obtaining a copy
-//  of this software and associated documentation files (the "Software"), to deal
-//  in the Software without restriction, including without limitation the rights
-//  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-//  copies of the Software, and to permit persons to whom the Software is
-//  furnished to do so, subject to the following conditions:
-//
-//  The above copyright notice and this permission notice shall be included in
-//  all copies or substantial portions of the Software.
-//
-//  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-//  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-//  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-//  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-//  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-//  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-//  THE SOFTWARE.
+//  See the LICENSE file at the project root for license information.
+//  See the CONTRIBUTORS file at the project root for a list of contributors.
 
 #include <stdlib.h>
 #include <stdio.h>
 #include <assert.h>
 #include <string.h>
 #include <ctype.h>
+#include <errno.h>
 #include "support/BRAssert.h"
 #include "BRUtil.h"
 
@@ -195,11 +181,14 @@ parseUInt64 (const char *string, int digits, int base) {
     assert (digits <= maxDigits );
     
     //
-    char number[1 + maxDigits];
+    char number[1 + maxDigits], *numberEnd;
     strncpy (number, string, maxDigits);
     number[maxDigits] = '\0';
-    
-    uint64_t value = strtoull (number, NULL, base);
+
+    errno = 0;
+    uint64_t value = strtoull (number, &numberEnd, base);
+    if (0 == errno && (*number == '\0' || numberEnd == NULL || *numberEnd != '\0'))
+        errno = EINVAL;
     return createUInt256 (value);
 }
 
@@ -224,6 +213,11 @@ createUInt256Parse (const char *string, int base, BRCoreParseStatus *status) {
     // Strip leading '0's
     while ('0' == *string) string++;
 
+    if ('\0' != *string && ('-' == *string || '+' == *string)) {
+        *status = CORE_PARSE_STRANGE_DIGITS;
+        return UINT256_ZERO;
+    }
+    
     UInt256 value = UINT256_ZERO;
     int maxDigits = parseMaximumDigitsForUInt256InBase(base);
     long length = strlen (string);
@@ -241,8 +235,13 @@ createUInt256Parse (const char *string, int base, BRCoreParseStatus *status) {
     // Eventually, when `parseUInt64()` calls `strtoull` we'll still be using big endian.
     for (long index = 0; index < length; index += stringChunks) {
         // On the first time through, get an initial value
-        if (index == 0)
+        if (index == 0) {
             value = parseUInt64(string, stringChunks, base);
+            if (errno != 0) {
+                *status = CORE_PARSE_STRANGE_DIGITS;
+                return UINT256_ZERO;
+            }
+        }
         
         // Otherwise, we'll scale value and add in the next chunk.
         else {
@@ -338,6 +337,24 @@ coerceString (UInt256 x, int base) {
     }
 }
 
+extern char *
+coerceStringPrefaced (UInt256 x, int base, const char *preface) {
+    char *string = coerceString (x, base);
+    if (NULL == preface || 0 == strcmp ("", preface)) return string;
+    char *stringToFree = string; // save the pointer to string
+
+    // Strip off leading zeros in `string`
+    while ('\0' != string[0] && '0' == string[0]) string++;
+
+    char *result = malloc (strlen(preface) + strlen (string) + 1);
+    strcpy (result, preface);
+    strcat (result, string);
+
+    free (stringToFree);
+
+    return result;
+}
+
 extern char * 
 coerceStringDecimal (UInt256 x, int decimals) {
     char *string = coerceString(x, 10);
@@ -371,4 +388,13 @@ coerceStringDecimal (UInt256 x, int decimals) {
         free (string);
         return result;
     }
+}
+
+extern char *
+coerceUInt256HashToString (UInt256 hash) {
+    char result[67];
+    result[0] = '0';
+    result[1] = 'x';
+    strcpy (&result[2], u256hex(hash));
+    return strdup (result);
 }

@@ -1,27 +1,12 @@
 //
 //  BBRUtilMath.c
-//  breadwallet-core Ethereum
+//  Core Ethereum
 //
 //  Created by Ed Gamble on 3/10/2018.
-//  Copyright (c) 2018 breadwallet LLC
+//  Copyright © 2018-2019 Breadwinner AG.  All rights reserved.
 //
-//  Permission is hereby granted, free of charge, to any person obtaining a copy
-//  of this software and associated documentation files (the "Software"), to deal
-//  in the Software without restriction, including without limitation the rights
-//  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-//  copies of the Software, and to permit persons to whom the Software is
-//  furnished to do so, subject to the following conditions:
-//
-//  The above copyright notice and this permission notice shall be included in
-//  all copies or substantial portions of the Software.
-//
-//  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-//  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-//  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-//  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-//  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-//  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-//  THE SOFTWARE.
+//  See the LICENSE file at the project root for license information.
+//  See the CONTRIBUTORS file at the project root for a list of contributors.
 
 #include <stdlib.h>
 #include <assert.h>
@@ -35,6 +20,22 @@ extern UInt256
 createUInt256 (uint64_t value) {
     UInt256 result = { .u64 = { value, 0, 0, 0}};
     return result;
+}
+
+extern UInt256
+createUInt256Double (double value, int decimals, int *overflow) {
+    assert (NULL != overflow);
+
+    UInt256 result = UINT256_ZERO;
+    long double y = fabs(value) * powl (10.0, decimals);
+
+    y = roundl(y);  // (extraneous) Axe any fraction; can't participate in a UInt
+
+    for (size_t index = 0; index < 4; index++)
+        result.u64[index] = UINT64_MAX * modfl(y/UINT64_MAX, &y);
+    *overflow = (y != 0);
+
+    return *overflow ? UINT256_ZERO : result;
 }
 
 extern UInt256
@@ -289,3 +290,21 @@ coerceUInt64 (UInt256 value, int *overflow) {
     return *overflow ? 0 : value.u64[0];
 }
 
+extern double
+coerceDouble (UInt256 value, int *overflow) {
+    long double result = coerceLongDouble (value, overflow);
+    if (!*overflow)
+        *overflow = !isfinite ((double) result);
+    return (double) result;
+}
+
+extern long double
+coerceLongDouble (UInt256 value, int *overflow) {
+    long double scale = powl ((long double) 2.0, (long double) 64.0);
+    long double result = 0;
+    for (ssize_t index = 3; index >= 0; index--)
+        result = ((long double) value.u64[index] + scale * result);
+
+    *overflow = !isfinite(result);
+    return result;
+}

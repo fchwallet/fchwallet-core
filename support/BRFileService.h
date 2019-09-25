@@ -3,7 +3,7 @@
 //  Core
 //
 //  Created by Richard Evers on 1/4/19.
-//  Copyright © 2019 breadwallet. All rights reserved.
+//  Copyright © 2019 breadwallet LLC
 //
 //  Permission is hereby granted, free of charge, to any person obtaining a copy
 //  of this software and associated documentation files (the "Software"), to deal
@@ -27,12 +27,12 @@
 #define BRFileService_h
 
 #include <stdlib.h>
-#include "../BRSet.h"
-#include "../BRInt.h"
+#include "BRSet.h"
+#include "BRInt.h"
 
-//Both Bitcoin and Ethereum Wallet Managers include the ability to save and load peers, block,
-//transactions and logs (for Ethereum) to the file system.  But, they both implement the file
-//operations independently.  Pull out the implementation into BRFileService.
+// Both Bitcoin and Ethereum Wallet Managers include the ability to save and load peers, block,
+// transactions and logs (for Ethereum) to the file system.  But, they both implement the file
+// operations independently.  Pull out the implementation into BRFileService.
 //
 // Allow each WalletManager (Bitcoin, Bitcash, Ethereum) to create their own BRFileService (storing
 // stuff in a subdirectory specific to the manager+network+whatever for a given base path).  Allow
@@ -48,6 +48,7 @@ typedef void* BRFileServiceContext;
 typedef enum {
     FILE_SERVICE_IMPL,              // generally a fatal condition
     FILE_SERVICE_UNIX,              // something in the file system (fopen, fwrite, ... errorred)
+    FILE_SERVICE_SDB,               // something in the sqlite3 database
     FILE_SERVICE_ENTITY             // entity read/write (parse/serialize) error
 } BRFileServiceErrorType;
 
@@ -63,6 +64,10 @@ typedef struct {
         } unix;
 
         struct {
+            int code;  // sqlite3_status_code
+        } sdb;
+
+        struct {
             const char *type;
             const char *reason;
         } entity;
@@ -74,10 +79,10 @@ typedef void
                               BRFileService fs,
                               BRFileServiceError error);
 
-
 /// This *must* be the same fixed size type forever.  It is uint8_t.
 typedef uint8_t BRFileServiceVersion;
 
+/// TODO: There are limitations on `currency`, `network`, and `type`.
 extern BRFileService
 fileServiceCreate (const char *basePath,
                    const char *currency,
@@ -111,22 +116,27 @@ fileServiceLoad (BRFileService fs,
                  const char *type,   /* blocks, peers, transactions, logs, ... */
                  int updateVersion);
 
-extern void /* error code? */
+extern int  // 1 -> success, 0 -> failure
 fileServiceSave (BRFileService fs,
                  const char *type,  /* block, peers, transactions, logs, ... */
                  const void *entity);     /* BRMerkleBlock*, BRTransaction, BREthereumTransaction, ... */
 
-extern void
+extern int
 fileServiceRemove (BRFileService fs,
                    const char *type,
                    UInt256 identifier);
 
-extern void
+extern int
 fileServiceClear (BRFileService fs,
                   const char *type);
 
-extern void
+extern int
 fileServiceClearAll (BRFileService fs);
+
+extern UInt256
+fileServiceGetIdentifier (BRFileService fs,
+                          const char *type,
+                          const void *entity);
 
 /**
  * A function type to produce an identifer from an entity.  The identifer must be constant for
@@ -156,6 +166,8 @@ typedef uint8_t*
                         const void* entity,
                         uint32_t *bytesCount);
 
+/// TODO: There is a limitation on `type`.
+
 /**
  * Define a 'type', such as {block, peer, transaction, logs, etc}, that is to be stored in the
  * file system.
@@ -183,5 +195,29 @@ extern int
 fileServiceDefineCurrentVersion (BRFileService fs,
                                  const char *type,
                                  BRFileServiceVersion version);
+
+// Version limit can increase with maximum number of version, historically.
+#define FILE_SERVICE_TYPE_SPECIFICATION_NUMBER_OF_VERSION_LIMIT   (5)
+
+typedef struct {
+    const char *type;
+    BRFileServiceVersion defaultVersion;
+    size_t versionsCount;
+    struct {
+        BRFileServiceVersion version;
+        BRFileServiceIdentifier identifier;
+        BRFileServiceReader reader;
+        BRFileServiceWriter writer;
+    } versions [FILE_SERVICE_TYPE_SPECIFICATION_NUMBER_OF_VERSION_LIMIT];
+} BRFileServiceTypeSpecification;
+
+extern BRFileService
+fileServiceCreateFromTypeSpecfications (const char *basePath,
+                                        const char *currency,
+                                        const char *network,
+                                        BRFileServiceContext context,
+                                        BRFileServiceErrorHandler handler,
+                                        size_t specificationsCount,
+                                        BRFileServiceTypeSpecification *specfications);
 
 #endif /* BRFileService_h */

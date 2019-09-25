@@ -3,27 +3,46 @@
 //  CoreTests
 //
 //  Created by Ed Gamble on 5/18/18.
-//  Copyright © 2018 breadwallet. All rights reserved.
+//  Copyright © 2018-2019 Breadwallet AG. All rights reserved.
+//
+//  See the LICENSE file at the project root for license information.
+//  See the CONTRIBUTORS file at the project root for a list of contributors.
 //
 import XCTest
 
 class CoreTests: XCTestCase {
 
-    static let PAPER_KEY_MAINNET = "paperKeysMainnet"
-    static let PAPER_KEY_TESTNET = "paperKeysTestnet"
+    struct AccountSpecification {
+        let identifier: String
+        let network: String
+        let paperKey: String
+        let timestamp: Date
 
-    var isMainnet: Int32! = 1
-    var isBTC: Int32! = 1
+        init (dict: [String: String]) {
+            self.identifier = dict["identifier"]! //as! String
+            self.network    = dict["network"]!
+            self.paperKey   = dict["paperKey"]!
 
-    var paperKeys: [String] = []
+            let dateFormatter = DateFormatter()
+            dateFormatter.dateFormat = "yyyy-MM-dd"
+            dateFormatter.locale = Locale(identifier: "en_US_POSIX")
 
-    var paperKey: String! {
-        return (paperKeys.count > 0
-            ? paperKeys[0]
-            : nil)
+            self.timestamp = dateFormatter.date(from: dict["timestamp"]!)!
+        }
     }
 
-    let configPath = Bundle(for: CoreTests.self).path(forResource: "CoreTestsConfig", ofType: "plist")!
+    var accountSpecifications: [AccountSpecification] = []
+    var accountSpecification: AccountSpecification! {
+        return accountSpecifications.count > 0
+            ? accountSpecifications[0]
+            : nil
+    }
+    var paperKey: String! = nil
+
+    var isMainnet = true
+    var isBTC: Int32! = 1
+
+    let configPath = Bundle(for: CoreTests.self).path(forResource: "CoreTestsConfig", ofType: "json")!
 
     var account: BREthereumAccount!
 
@@ -56,23 +75,52 @@ class CoreTests: XCTestCase {
     override func setUp() {
         super.setUp()
 
-        #if TESTNET
-        isMainnet = 0
-        #endif
+        // Get the paperKey from `configPath`
+        if FileManager.default.fileExists(atPath: configPath) {
+            let configFile = URL(fileURLWithPath: configPath)
+            let configData = try! Data.init(contentsOf: configFile)
+            let json = try! JSONSerialization.jsonObject(with: configData, options: []) as! [[String:String]]
+            accountSpecifications = json
+                .map { AccountSpecification (dict: $0) }
+                .filter { $0.network == (isMainnet ? "mainnet" : "testnet") }
+        }
+        else {
+            accountSpecifications = [
+                AccountSpecification (dict: [
+                    "identifier": "ginger",
+                    "paperKey":   "ginger settle marine tissue robot crane night number ramp coast roast critic",
+                    "timestamp":  "2018-01-01",
+                    "network":    (isMainnet ? "mainnet" : "testnet")
+                    ])
+            ]
+        }
+
+        let fakeEthAccount: String = (isMainnet
+            ? "0xb0F225defEc7625C6B5E43126bdDE398bD90eF62"
+            : "0x8fB4CB96F7C15F9C39B3854595733F728E1963Bc")
+
+
+        paperKey = (nil != accountSpecification
+            ? accountSpecification.paperKey
+            : "ginger settle marine tissue robot crane night number ramp coast roast critic")
+
+        account = createAccount (nil != accountSpecification
+            ? accountSpecification.paperKey
+            : fakeEthAccount)
+
+        #if false
 
         // Eth Account for the non-compromised, mainnet paperKey "e...a"
-        var fakeEthAccount: String = "0xb0F225defEc7625C6B5E43126bdDE398bD90eF62"
+        let fakeEthAccount: String = (isMainnet
+            ? "0xb0F225defEc7625C6B5E43126bdDE398bD90eF62"
+            : "0x8fB4CB96F7C15F9C39B3854595733F728E1963Bc")
 
         if FileManager.default.fileExists(atPath: configPath) {
             let configFile = URL(fileURLWithPath: configPath)
             let configData = try! Data.init(contentsOf: configFile)
             let configPropertyList = try! PropertyListSerialization.propertyList(from: configData, options: [], format: nil) as! [String: [String]]
 
-            #if TESTNET
-            paperKeys = configPropertyList [CoreTests.PAPER_KEY_TESTNET]!
-            #else
             paperKeys = configPropertyList [CoreTests.PAPER_KEY_MAINNET]!
-            #endif
         }
         else if 0 == isMainnet /* testnet */ {
             // This is a compromised testnet paperkey
@@ -82,6 +130,7 @@ class CoreTests: XCTestCase {
 
         account = createAccount (nil != paperKey ? paperKey : fakeEthAccount)
 
+        #endif
         coreDataDir = FileManager.default
             .urls(for: .documentDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("Core").path
@@ -104,6 +153,11 @@ class CoreTests: XCTestCase {
     }
 
     //
+    func testCrypto () {
+        runCryptoTests ()
+    }
+
+    //
     // Ethereum
     //
     func testEthereumRlp () {
@@ -118,6 +172,10 @@ class CoreTests: XCTestCase {
         runEventTests ();
     }
 
+    func testEthereumBase () {
+        runBaseTests()
+    }
+    
     func testEthereumBlockChain () {
         runBcTests()
     }
@@ -139,6 +197,12 @@ class CoreTests: XCTestCase {
         runNodeTests()
     }
 
+    ///
+    /// Ripple
+    ///
+    func testRipple () {
+        runRippleTest ()
+    }
 
     /// Run an Etheruem Sync.  Two syncs are run back-to-back with the second sync meant to
     /// start from the saved state of the first sync.
@@ -148,10 +212,10 @@ class CoreTests: XCTestCase {
     /// - Throws: something
     ///
     func testEthereumSyncStorage () throws {
-        let mode = BRD_WITH_P2P_SEND; // BRD_ONLY;  P2P_WITH_BRD_SYNC; // P2P_ONLY,  BRD_WITH_P2P_SEND
+        let mode = SYNC_MODE_P2P_ONLY;
         let timestamp : UInt64 = 0
 
-        let network = (isMainnet == 1 ? ethereumMainnet : ethereumTestnet)
+        let network = (isMainnet ? ethereumMainnet : ethereumTestnet)
 
         print ("ETH: TST: Core Dir: \(coreDataDir!)")
         coreDirClear()
@@ -162,7 +226,7 @@ class CoreTests: XCTestCase {
     /// Run a single bitcoin sync using the provided paperKey
     ///
     func testBitcoinSyncOne() {
-        BRRunTestsSync (paperKey, isBTC, isMainnet);
+        BRRunTestsSync (paperKey, isBTC, (isMainnet ? 1 : 0));
     }
 
     /// Run 25 simultaneous bitcoin syncs using the provided paperKeys and random keys after
@@ -174,8 +238,8 @@ class CoreTests: XCTestCase {
             DispatchQueue.init(label: "Sync \(i)")
                 .async {
                     group.enter()
-                    let paperKey = i <= self.paperKeys.count ? self.paperKeys[i - 1] : nil
-                    BRRunTestsSync (paperKey, self.isBTC, self.isMainnet);
+                    let paperKey = i <= self.accountSpecifications.count ? self.accountSpecifications[i - 1].paperKey : nil
+                    BRRunTestsSync (paperKey, self.isBTC, (self.isMainnet ? 1 : 0));
                     group.leave()
             }
         }
@@ -189,8 +253,8 @@ class CoreTests: XCTestCase {
     func testBitcoinWalletManagerSync () {
         print ("ETH: TST: Core Dir: \(coreDataDir!)")
         coreDirClear()
-        BRRunTestWalletManagerSync (paperKey, coreDataDir, isBTC, isMainnet);
-        BRRunTestWalletManagerSync (paperKey, coreDataDir, isBTC, isMainnet);
+        BRRunTestWalletManagerSync (paperKey, coreDataDir, isBTC, (isMainnet ? 1 : 0));
+        BRRunTestWalletManagerSync (paperKey, coreDataDir, isBTC, (isMainnet ? 1 : 0));
    }
 
     func testPerformanceExample() {

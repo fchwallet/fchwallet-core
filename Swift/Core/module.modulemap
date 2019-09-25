@@ -1,34 +1,33 @@
-module BRCore [system] [extern_c] {
-    textual header "../../secp256k1/src/basic-config.h"
-    textual header "../../secp256k1/src/secp256k1.c"
-    header "../../BRInt.h"
-    header "../../BRArray.h"
-    header "../../BRSet.h"
-    header "../../BRBloomFilter.h"
-    header "../../BRMerkleBlock.h"
-    header "../../BRPeer.h"
-    header "../../BRCrypto.h"
-    header "../../BRBase58.h"
-    header "../../BRBech32.h"
-    header "../../BRKey.h"
-    header "../../BRKeyECIES.h"
-    header "../../BRBIP38Key.h"
-    header "../../BRBIP39Mnemonic.h"
-    header "../../BRBIP32Sequence.h"
-    header "../../BRTransaction.h"
-    header "../../BRPaymentProtocol.h"
-    header "../../BRAddress.h"
-    header "../../BRWallet.h"
-    header "../../BRWalletManager.h"
-    header "../../BRPeerManager.h"
-    header "../../BRChainParams.h"
-    header "../../bcash/BRBCashParams.h"
-    header "../../bcash/BRBCashAddr.h"
-    export *
+module BRCryptoC [system] [extern_c] {
+    header "../../crypto/BRCryptoHash.h"
+    header "../../crypto/BRCryptoCurrency.h"
+    header "../../crypto/BRCryptoUnit.h"
+    header "../../crypto/BRCryptoAmount.h"
+    header "../../crypto/BRCryptoNetwork.h"
+    header "../../crypto/BRCryptoPeer.h"
+    header "../../crypto/BRCryptoAccount.h"
+    header "../../crypto/BRCryptoCoder.h"
+    header "../../crypto/BRCryptoCipher.h"
+    header "../../crypto/BRCryptoKey.h"
+    header "../../crypto/BRCryptoHasher.h"
+    header "../../crypto/BRCryptoSigner.h"
+    header "../../crypto/BRCryptoAddress.h"
+    header "../../crypto/BRCryptoFeeBasis.h"
+    header "../../crypto/BRCryptoTransfer.h"
+    header "../../crypto/BRCryptoPayment.h"
+    header "../../crypto/BRCryptoWallet.h"
+    header "../../crypto/BRCryptoWalletManager.h"
+    header "../../crypto/BRCryptoWalletManagerClient.h"
+    header "../../generic/BRGeneric.h"
 
-    explicit module Ethereum {
-        header "../../ethereum/BREthereum.h"
-        header "../../ethereum/contract/BREthereumToken.h"
-        export *
-    }
+    header "../../crypto/BRCryptoPrivate.h"
+
+    // BRCrypto{Hasher,Coder,Encrypter,Signer} when in Swift->C
+    header "../../support/BRCrypto.h"
+    header "../../support/BRBase58.h"
+    header "../../ethereum/util/BRUtilHex.h"
+    header "../../support/BRKeyECIES.h"
+    header "../../support/BRKey.h"
+
+    export *
 }

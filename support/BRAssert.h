@@ -3,7 +3,7 @@
 //  BRCore
 //
 //  Created by Ed Gamble on 2/4/19.
-//  Copyright © 2019 breadwallet. All rights reserved.
+//  Copyright © 2019 breadwallet LLC
 //
 //  Permission is hereby granted, free of charge, to any person obtaining a copy
 //  of this software and associated documentation files (the "Software"), to deal
@@ -26,6 +26,8 @@
 
 #ifndef BRAssert_h
 #define BRAssert_h
+
+#include <stdio.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -165,7 +167,5 @@ BRAssertRemoveRecovery (BRAssertRecoveryInfo info);
 #ifdef __cplusplus
 }
 #endif
-
-#include <stdio.h>
 
 #endif /* BRAssert_h */

@@ -1,28 +1,13 @@
 
 //
 //  test
-//  breadwallet-core Ethereum
+//  Core Ethereum
 //
 //  Created by Ed Gamble on 2/27/18.
-//  Copyright (c) 2018 breadwallet LLC
+//  Copyright © 2018-2019 Breadwinner AG.  All rights reserved.
 //
-//  Permission is hereby granted, free of charge, to any person obtaining a copy
-//  of this software and associated documentation files (the "Software"), to deal
-//  in the Software without restriction, including without limitation the rights
-//  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-//  copies of the Software, and to permit persons to whom the Software is
-//  furnished to do so, subject to the following conditions:
-//
-//  The above copyright notice and this permission notice shall be included in
-//  all copies or substantial portions of the Software.
-//
-//  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-//  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-//  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-//  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-//  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-//  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-//  THE SOFTWARE.
+//  See the LICENSE file at the project root for license information.
+//  See the CONTRIBUTORS file at the project root for a list of contributors.
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -34,20 +19,25 @@
 #include <arpa/inet.h>
 #include <assert.h>
 #include <pthread.h>
-
-#include "BRInt.h"
-#include "BRArray.h"
-#include "BRSet.h"
-#include "BRCrypto.h"
-#include "BRBIP39WordsEn.h"
+#include "support/BRInt.h"
+#include "support/BRArray.h"
+#include "support/BRSet.h"
+#include "support/BRCrypto.h"
+#include "support/BRBIP39WordsEn.h"
+#include "ethereum/event/BREventAlarm.h"
+#include "ethereum/blockchain/BREthereumBlockChain.h"
+#include "ethereum/ewm/BREthereumAccount.h"
+#include "ethereum/ewm/BREthereumWallet.h"
+#include "ethereum/ewm/BREthereumTransfer.h"
 #include "BREthereum.h"
-#include "ewm/BREthereumAccount.h"
-#include "ewm/BREthereumWallet.h"
-#include "ewm/BREthereumTransfer.h"
-#include "blockchain/BREthereumBlockChain.h"
-#include "event/BREventAlarm.h"
+
+#include "test.h"
 
 extern const char *tokenBRDAddress;
+
+extern BREthereumToken
+tokenLookupTest (const char *address);
+
 //
 // Ether & Token Parse
 //
@@ -273,7 +263,7 @@ void runTransactionTests3 (BREthereumAccount account, BREthereumNetwork network)
     printf ("     TEST 3\n");
     
     BRCoreParseStatus status;
-    BREthereumToken token = tokenLookup(tokenBRDAddress);
+    BREthereumToken token = tokenLookupTest (tokenBRDAddress);
     BREthereumWallet wallet = walletCreateHoldingToken (account, network, token);
     UInt256 value = createUInt256Parse ("5968770000000000000000", 10, &status);
     BREthereumAmount amount = amountCreateToken(createTokenQuantity (token, value));
@@ -452,7 +442,7 @@ void testTransactionCodingEther () {
 void testTransactionCodingToken () {
     printf ("     Coding Transaction\n");
 
-    BREthereumToken token = tokenLookup(tokenBRDAddress);
+    BREthereumToken token = tokenLookupTest(tokenBRDAddress);
     BREthereumAccount account = createAccount (NODE_PAPER_KEY);
     BREthereumWallet wallet = walletCreateHoldingToken(account, ethereumMainnet, token);
 
@@ -571,7 +561,7 @@ int main(int argc, const char *argv[]) {
     runEventTests();
     runBcTests();
     runContractTests();
-    runEWMTests();
+    runEWMTests(NODE_PAPER_KEY, "/tmp");
     runTests(0);
 }
 #endif

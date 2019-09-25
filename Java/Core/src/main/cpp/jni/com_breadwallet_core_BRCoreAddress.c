@@ -1,30 +1,15 @@
 //  Created by Ed Gamble on 1/23/2018
-//  Copyright (c) 2018 breadwallet LLC.
+//  Copyright (c) 2018 Breadwinner AG.  All right reserved.
 //
-//  Permission is hereby granted, free of charge, to any person obtaining a copy
-//  of this software and associated documentation files (the "Software"), to deal
-//  in the Software without restriction, including without limitation the rights
-//  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-//  copies of the Software, and to permit persons to whom the Software is
-//  furnished to do so, subject to the following conditions:
-//
-//  The above copyright notice and this permission notice shall be included in
-//  all copies or substantial portions of the Software.
-//
-//  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-//  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-//  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-//  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-//  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-//  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-//  THE SOFTWARE.
+//  See the LICENSE file at the project root for license information.
+//  See the CONTRIBUTORS file at the project root for a list of contributors.
 
-#include "BRCoreJni.h"
 #include <stdlib.h>
 #include <assert.h>
-#include "BRAddress.h"
-#include "com_breadwallet_core_BRCoreAddress.h"
+#include "BRCoreJni.h"
+#include "support/BRAddress.h"
 #include "bcash/BRBCashAddr.h"
+#include "com_breadwallet_core_BRCoreAddress.h"
 
 /*
  * Class:     com_breadwallet_core_BRCoreAddress
@@ -61,15 +46,16 @@ Java_com_breadwallet_core_BRCoreAddress_createCoreAddress
  */
 JNIEXPORT jlong JNICALL Java_com_breadwallet_core_BRCoreAddress_createCoreAddressFromScriptPubKey
         (JNIEnv *env, jclass thisClass, jbyteArray scriptByteArray) {
-    BRAddress *address = (BRAddress *) calloc (1, sizeof (BRAddress));
-
-    size_t scriptLen = (size_t) (*env)->GetArrayLength (env, scriptByteArray);
-    const uint8_t *script = (const uint8_t *) (*env)->GetByteArrayElements (env, scriptByteArray, 0);
-
-    // TODO: Error handling
-    BRAddressFromScriptPubKey(address->s, sizeof(address->s), script, scriptLen);
-
-    return (jlong) address;
+//    BRAddress *address = (BRAddress *) calloc (1, sizeof (BRAddress));
+//
+//    size_t scriptLen = (size_t) (*env)->GetArrayLength (env, scriptByteArray);
+//    const uint8_t *script = (const uint8_t *) (*env)->GetByteArrayElements (env, scriptByteArray, 0);
+//
+//    // TODO: Error handling
+//     BRAddressFromScriptPubKey(address->s, sizeof(address->s), script, scriptLen);
+//
+//    return (jlong) address;
+    return 0;
 }
 
 /*
@@ -79,15 +65,16 @@ JNIEXPORT jlong JNICALL Java_com_breadwallet_core_BRCoreAddress_createCoreAddres
  */
 JNIEXPORT jlong JNICALL Java_com_breadwallet_core_BRCoreAddress_createCoreAddressFromScriptSignature
         (JNIEnv *env, jclass thisClass, jbyteArray scriptByteArray) {
-    BRAddress *address = (BRAddress *) calloc(1, sizeof(BRAddress));
-
-    size_t scriptLen = (size_t) (*env)->GetArrayLength(env, scriptByteArray);
-    const uint8_t *script = (const uint8_t *) (*env)->GetByteArrayElements(env, scriptByteArray, 0);
-
-    // TODO: Error handling
-    BRAddressFromScriptSig(address->s, sizeof(address->s), script, scriptLen);
-
-    return (jlong) address;
+//    BRAddress *address = (BRAddress *) calloc(1, sizeof(BRAddress));
+//
+//    size_t scriptLen = (size_t) (*env)->GetArrayLength(env, scriptByteArray);
+//    const uint8_t *script = (const uint8_t *) (*env)->GetByteArrayElements(env, scriptByteArray, 0);
+//
+//    // TODO: Error handling
+//    BRAddressFromScriptSig(address->s, sizeof(address->s), script, scriptLen);
+//
+//    return (jlong) address;
+    return 0;
 }
 
 /*
@@ -110,10 +97,11 @@ Java_com_breadwallet_core_BRCoreAddress_stringify
 JNIEXPORT jboolean JNICALL
 Java_com_breadwallet_core_BRCoreAddress_isValid
         (JNIEnv *env, jobject thisObject) {
-    BRAddress *address = (BRAddress *) getJNIReference(env, thisObject);
-    return (jboolean) (BRAddressIsValid(address->s)
-                       ? JNI_TRUE
-                       : JNI_FALSE);
+//    BRAddress *address = (BRAddress *) getJNIReference(env, thisObject);
+//    return (jboolean) (BRAddressIsValid(address->s)
+//                       ? JNI_TRUE
+//                       : JNI_FALSE);
+    return JNI_FALSE;
 }
 
 /*
@@ -124,16 +112,17 @@ Java_com_breadwallet_core_BRCoreAddress_isValid
 JNIEXPORT jbyteArray JNICALL
 Java_com_breadwallet_core_BRCoreAddress_getPubKeyScript
         (JNIEnv *env, jobject thisObject) {
-    BRAddress *address = (BRAddress *) getJNIReference(env, thisObject);
-
-    size_t pubKeyLen = BRAddressScriptPubKey(NULL, 0, address->s);
-    uint8_t pubKey[pubKeyLen];
-    BRAddressScriptPubKey(pubKey, pubKeyLen, address->s);
-
-    jbyteArray result = (*env)->NewByteArray (env, (jsize) pubKeyLen);
-    (*env)->SetByteArrayRegion (env, result, 0, (jsize) pubKeyLen, (const jbyte *) pubKey);
-
-    return result;
+//    BRAddress *address = (BRAddress *) getJNIReference(env, thisObject);
+//
+//    size_t pubKeyLen = BRAddressScriptPubKey(NULL, 0, address->s);
+//    uint8_t pubKey[pubKeyLen];
+//    BRAddressScriptPubKey(pubKey, pubKeyLen, address->s);
+//
+//    jbyteArray result = (*env)->NewByteArray (env, (jsize) pubKeyLen);
+//    (*env)->SetByteArrayRegion (env, result, 0, (jsize) pubKeyLen, (const jbyte *) pubKey);
+//
+//    return result;
+    return NULL;
 }
 
 /*

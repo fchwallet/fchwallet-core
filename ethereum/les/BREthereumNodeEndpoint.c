@@ -3,25 +3,10 @@
 //  Core
 //
 //  Created by Ed Gamble on 8/14/18.
-//  Copyright (c) 2018 breadwallet LLC
+//  Copyright © 2018-2019 Breadwinner AG.  All rights reserved.
 //
-//  Permission is hereby granted, free of charge, to any person obtaining a copy
-//  of this software and associated documentation files (the "Software"), to deal
-//  in the Software without restriction, including without limitation the rights
-//  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-//  copies of the Software, and to permit persons to whom the Software is
-//  furnished to do so, subject to the following conditions:
-//
-//  The above copyright notice and this permission notice shall be included in
-//  all copies or substantial portions of the Software.
-//
-//  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-//  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-//  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-//  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-//  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-//  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-//  THE SOFTWARE.
+//  See the LICENSE file at the project root for license information.
+//  See the CONTRIBUTORS file at the project root for a list of contributors.
 
 #include <stdlib.h>
 #include <string.h>
@@ -35,6 +20,8 @@
 #include <netinet/in.h>
 #include <assert.h>
 #include <limits.h>
+#include "ethereum/util/BRUtil.h"
+#include "BREthereumNodeEndpoint.h"
 
 #ifndef HOST_NAME_MAX
 # if defined(_POSIX_HOST_NAME_MAX)
@@ -47,9 +34,6 @@
 #  error HOST_NAME_MAX is undefined
 # endif
 #endif /* HOST_NAME_MAX */
-
-#include "../util/BRUtil.h"
-#include "BREthereumNodeEndpoint.h"
 
 #ifndef MSG_NOSIGNAL   // linux based systems have a MSG_NOSIGNAL send flag, useful for supressing SIGPIPE signals
 #define MSG_NOSIGNAL 0 // set to 0 if undefined (BSD has the SO_NOSIGPIPE sockopt, and windows has no signals at all)
@@ -97,9 +81,7 @@ struct BREthereumNodeEndpointRecord {
     BREthereumBoolean discovered;
 };
 
-///
 /// MARK: - Create/Release
-///
 
 extern BREthereumNodeEndpoint
 nodeEndpointCreateDetailed (BREthereumDISNeighbor dis,
@@ -161,14 +143,21 @@ nodeEndpointCreateLocal (BREthereumLESRandomContext randomContext) {
 extern BREthereumNodeEndpoint
 nodeEndpointCreateEnode (const char *enode) {
     size_t enodeLen = strlen (enode);
-    assert (enodeLen < 1024);
+    if (enodeLen >= 1024)
+        return NULL;
 
     char buffer[1024], *buf = buffer;
-    assert (1 == sscanf (enode, "enode://%s", buffer));
+
+    if (1 != sscanf (enode, "enode://%s", buffer))
+        return NULL;
 
     char *id = strsep (&buf, "@:");
     char *ip = strsep (&buf, "@:");
     char *pt = strsep (&buf, "@:");
+
+    if (NULL == id || NULL == ip || NULL == pt)
+        return NULL;
+
     int port = atoi (pt);
 
     BREthereumDISEndpoint disEndpoint = {
@@ -199,9 +188,7 @@ nodeEndpointRelease (BREthereumNodeEndpoint endpoint) {
     free (endpoint);
 }
 
-///
 /// MARK: - Getters/Setters
-///
 
 extern BREthereumHash
 nodeEndpointGetHash (BREthereumNodeEndpoint endpoint) {
@@ -261,9 +248,8 @@ nodeEndpointHashEqual (const void *h1, const void *h2) {
                                      &((BREthereumNodeEndpoint) h2)->hash);
 }
 
-///
 /// MARK: - Hello
-///
+
 extern BREthereumP2PMessageHello
 nodeEndpointGetHello (const BREthereumNodeEndpoint endpoint) {
     return endpoint->hello;
@@ -292,7 +278,8 @@ nodeEndpointDefineHello (BREthereumNodeEndpoint endpoint,
 
     // The NodeID is the 64-byte (uncompressed) public key
     uint8_t pubKey[65];
-    assert (65 == BRKeyPubKey (&endpoint->dis.key, pubKey, 65));
+    size_t pubKeyLen = BRKeyPubKey (&endpoint->dis.key, pubKey, 65);
+    assert (65 == pubKeyLen);
     memcpy (endpoint->hello.nodeId.u8, &pubKey[1], 64);
 }
 
@@ -323,9 +310,8 @@ nodeEndpointHasHelloMatchingCapability (BREthereumNodeEndpoint source,
     return NULL;
 }
 
-///
 /// MARK: - Status
-///
+
 extern BREthereumP2PMessageStatus
 nodeEndpointGetStatus (const BREthereumNodeEndpoint endpoint) {
     return endpoint->status;
@@ -363,9 +349,8 @@ nodeEndpointShowStatus (BREthereumNodeEndpoint endpoint) {
     messageP2PStatusShow (&endpoint->status);
 }
 
-///
 /// MARK: - Open/Close
-///
+
 extern int // errno
 nodeEndpointOpen (BREthereumNodeEndpoint endpoint,
                   BREthereumNodeEndpointRoute route) {
@@ -417,9 +402,7 @@ nodeEndpointIsOpen (BREthereumNodeEndpoint endpoint,
     return -1 != endpoint->sockets[route];
 }
 
-///
 /// MARK: - Recv/Send Data
-///
 
 extern int // errno
 nodeEndpointRecvData (BREthereumNodeEndpoint endpoint,
@@ -582,8 +565,12 @@ openSocket(BREthereumNodeEndpoint endpoint, int *socketToAssign, int port, int d
 
     if (*socketToAssign < 0) return openSocketReportResult (endpoint, port, type, errno);
 
-    tv.tv_sec = 10; // one second timeout for send/receive, so thread doesn't block for too long
+    // ten second timeout for send/receive
+    // BTC: so thread doesn't block for too long.
+    // ETH: we use select and thus won't/shouldn't block on reads nor writes.
+    tv.tv_sec = 10;
     tv.tv_usec = 0;
+
     setsockopt(*socketToAssign, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
     setsockopt(*socketToAssign, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));
     setsockopt(*socketToAssign, SOL_SOCKET, SO_KEEPALIVE, &on, sizeof(on));

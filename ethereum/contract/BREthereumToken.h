@@ -1,32 +1,17 @@
 //
 //  BREthereumToken
-//  breadwallet-core Ethereum
+//  Core Ethereum
 //
 //  Created by Ed Gamble on 3/15/18.
-//  Copyright (c) 2018 breadwallet LLC
+//  Copyright © 2018-2019 Breadwinner AG.  All rights reserved.
 //
-//  Permission is hereby granted, free of charge, to any person obtaining a copy
-//  of this software and associated documentation files (the "Software"), to deal
-//  in the Software without restriction, including without limitation the rights
-//  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-//  copies of the Software, and to permit persons to whom the Software is
-//  furnished to do so, subject to the following conditions:
-//
-//  The above copyright notice and this permission notice shall be included in
-//  all copies or substantial portions of the Software.
-//
-//  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-//  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-//  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-//  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-//  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-//  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-//  THE SOFTWARE.
+//  See the LICENSE file at the project root for license information.
+//  See the CONTRIBUTORS file at the project root for a list of contributors.
 
 #ifndef BR_Ethereum_Token_H
 #define BR_Ethereum_Token_H
 
-#include "../base/BREthereumBase.h"
+#include "ethereum/base/BREthereumBase.h"
 #include "BREthereumContract.h"
 
 // For tokenBRD define defaults for Gas Limit and Price.  These are arguably never up to date
@@ -52,6 +37,13 @@ tokenGetAddressRaw (BREthereumToken token);
 extern const char *
 tokenGetAddress (BREthereumToken token);
 
+/**
+ * Check if `token` has `address` which must be a '0x'-prefixed hex string.
+ */
+extern BREthereumBoolean
+tokenHasAddress (BREthereumToken token,
+                 const char *address);
+
 extern const char *
 tokenGetSymbol (BREthereumToken token);
 
@@ -73,30 +65,40 @@ tokenGetGasPrice (BREthereumToken token);
 extern BREthereumContract
 tokenGetContract (BREthereumToken token);
 
-extern BREthereumToken
-tokenLookupByAddress (BREthereumAddress address);
-    
-extern BREthereumToken
-tokenLookup (const char *address);
+extern BREthereumHash
+tokenGetHash (BREthereumToken token);
 
-extern int
-tokenCount (void);
-
-/**
- * Return a newly allocated array with references to all tokens
- */
-extern BREthereumToken *
-tokenGetAll (void);
+extern BREthereumToken
+tokenCreate (const char *address,
+             const char *symbol,
+             const char *name,
+             const char *description,
+             int decimals,
+             BREthereumGas defaultGasLimit,
+             BREthereumGasPrice defaultGasPrice);
 
 extern void
-tokenInstall (const char *address,
-              const char *symbol,
-              const char *name,
-              const char *description,
-              int decimals,
-              BREthereumGas defaultGasLimit,
-              BREthereumGasPrice defaultGasPrice);
+tokenRelease (BREthereumToken token);
 
+extern void
+tokenUpdate (BREthereumToken token,
+             const char *symbol,
+             const char *name,
+             const char *description,
+             int decimals,
+             BREthereumGas defaultGasLimit,
+             BREthereumGasPrice defaultGasPrice);
+
+extern BRRlpItem
+tokenEncode (BREthereumToken token,
+             BRRlpCoder coder);
+
+extern BREthereumToken
+tokenDecode (BRRlpItem item,
+             BRRlpCoder coder);
+
+extern BRSetOf(BREthereumToken)
+tokenSetCreate (size_t capacity);
 
 //
 // Token Quantity

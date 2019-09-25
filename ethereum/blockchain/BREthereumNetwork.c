@@ -1,28 +1,14 @@
 //
 //  BREthereumNetwork
-//  breadwallet-core Ethereum
+//  Core Ethereum
 //
 //  Created by Ed Gamble on 3/13/18.
-//  Copyright (c) 2018 breadwallet LLC
+//  Copyright © 2018-2019 Breadwinner AG.  All rights reserved.
 //
-//  Permission is hereby granted, free of charge, to any person obtaining a copy
-//  of this software and associated documentation files (the "Software"), to deal
-//  in the Software without restriction, including without limitation the rights
-//  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-//  copies of the Software, and to permit persons to whom the Software is
-//  furnished to do so, subject to the following conditions:
-//
-//  The above copyright notice and this permission notice shall be included in
-//  all copies or substantial portions of the Software.
-//
-//  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-//  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-//  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-//  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-//  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-//  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-//  THE SOFTWARE.
+//  See the LICENSE file at the project root for license information.
+//  See the CONTRIBUTORS file at the project root for a list of contributors.
 
+#include <ctype.h>
 #include <stdlib.h>
 #include "BREthereumNetwork.h"
 
@@ -32,6 +18,9 @@
 static void
 networkInitilizeAllIfAppropriate (void);
 
+//
+// Network
+//
 struct BREthereumNetworkRecord {
     const char *name;
     int chainId;
@@ -68,6 +57,17 @@ networkGetName (BREthereumNetwork network) {
     return network->name;
 }
 
+extern char *
+networkCopyNameAsLowercase (BREthereumNetwork network) {
+    char *networkName = strdup (network-> name);
+    size_t networkNameLength = strlen (networkName);
+
+    for (size_t index = 0; index < networkNameLength; index++)
+        networkName[index] = tolower (networkName[index]);
+
+    return networkName;
+}
+
 extern const char**
 networkGetSeeds (BREthereumNetwork network) {
     return network->seeds;
@@ -95,15 +95,13 @@ networkGetEnodesLocal (BREthereumNetwork network, int parity) {
     return parity ?  network->enodesLCLParity : network->enodesLCLGeth;
 }
 
-//
-// MARK: - Static Network Definitions
-//
+/// MARK: - Static Network Definitions
 
 //
 // Mainnet
 //
 static struct BREthereumNetworkRecord ethereumMainnetRecord = {
-    "Mainnet",
+    "mainnet",
     1,
     EMPTY_HASH_INIT,
     EMPTY_HASH_INIT,
@@ -114,26 +112,35 @@ static struct BREthereumNetworkRecord ethereumMainnetRecord = {
 
     // Enodes
 
-    // BRD
-    { "enode://757782a7331bf92e648db97779bf10341ffde5db3e28603c863462ebcb20016d0565469dbb4b20925e1c6e59a01b04b51e80273f844e066b8ebec746e2a2a833@178.128.62.142:8888",
-        "enode://ae1e2d1f4c17203e17a9cc8bffd5a2f9ad4cf081fa966caa643e32bdbd31f483d5ecb515113df4c9e9a6673eed25033d3031836260053bbd2f00c0d5a00cc319@206.189.78.132:8888",
+    { // BRD
+        // Geth
+        "enode://757782a7331bf92e648db97779bf10341ffde5db3e28603c863462ebcb20016d0565469dbb4b20925e1c6e59a01b04b51e80273f844e066b8ebec746e2a2a833@178.128.62.142:8888",
         "enode://b9040af88f88a5b5e2864b2e98630d58579aab0649a90fff5b5b544f0aaf97a2a084651ca5a2b2f358abd215bda4494e7a350ab126915abd559d6da7b539b6ca@138.68.12.85:8888",
-        "enode://16e59b1305340bf33546b218dcdb393c7ff8791a6c1cd059ece918fd6b57877e053d26b58bf5f6daa67e5de201057c6297bcab76fa8ec4bc1af15b4642892fd9@159.203.9.180:8888",
         "enode://c07c687e2d402593a29cd8a6e711c37b517d8ccefa1b8de14aede99dd9b0c697796aa00b6693ec8270c5ecae0780b71c8717a19e3504cf6576a3a2699e0d5032@142.93.184.70:8888",
+        "enode://8dfffec569005e999ddd14dad7d56f65a9eace66489f064129d4e6a146104097042b251d3443ae60dfd521a1ce59e0337ea6031b132f9e233b3659cd778da24b@139.59.5.129:8888",
+        "enode://3a8053e5b3b1d613adaaf015c7e034ff084b8ce1aad0f570c6cad0fa67543da1c54f6a208a621fd9282d01858f4432478f2ee416b8186bac8d9699840a50fcda@159.203.0.222:8888",
+        "enode://db413f3e642d62a72528540682559c507bd4bcb9c2ef009c09915e8f5b997e32a00b069c60d9667ca66a822dcddc5ff9d81b51311134d01b51620b68e62a79eb@134.209.233.100:8888",
+
+        // Parity
+        "enode://16e59b1305340bf33546b218dcdb393c7ff8791a6c1cd059ece918fd6b57877e053d26b58bf5f6daa67e5de201057c6297bcab76fa8ec4bc1af15b4642892fd9@159.203.9.180:8888",
+
+        // Unknown (Gone)
+        //        "enode://ae1e2d1f4c17203e17a9cc8bffd5a2f9ad4cf081fa966caa643e32bdbd31f483d5ecb515113df4c9e9a6673eed25033d3031836260053bbd2f00c0d5a00cc319@206.189.78.132:8888",
+
         NULL },
 
-    // Community
-    { "enode://0f740f471e876020566c2ce331c81b4128b9a18f636b1d4757c4eaea7f077f4b15597a743f163280293b0a7e35092064be11c4ec199b9905541852a36be9004b@206.221.178.149:30303",
+    { // Community
+        "enode://0f740f471e876020566c2ce331c81b4128b9a18f636b1d4757c4eaea7f077f4b15597a743f163280293b0a7e35092064be11c4ec199b9905541852a36be9004b@206.221.178.149:30303",
         "enode://16d92fc94f4ec4386aca44d255853c27cbe97a4274c0df98d2b642b0cc4b2f2330e99b00b46db8a031da1a631c85e2b4742d52f5eaeca46612cd28db41fb1d7f@91.223.175.173:30303",
         NULL },
 
-    // Local - Parity
-    { "enode://74b31b97f646b206dd01d8f20d080b97e502483a55ee64ea02cbf0c6df4263ff33bee61ba940113db36a4cfd1e1e8f2fe66cf91e6a1925f63860fb6bc5671c87@192.168.1.200:8888",  // SSD Archive - Sam
-        "enode://6ff469b687ad551b105226ea5d84c5137e8cbba0e12c134fa53b620b6fa90bbb2ee0fe1f590d05eec79f70c21399946be6c87d2ff7b698c77a775807917114d4@127.0.0.1:30303",   // SSD Archive - Ed
+    { // Local - Parity
+        "enode://74b31b97f646b206dd01d8f20d080b97e502483a55ee64ea02cbf0c6df4263ff33bee61ba940113db36a4cfd1e1e8f2fe66cf91e6a1925f63860fb6bc5671c87@192.168.1.200:8888",  // SSD Archive - Sam
+        "enode://6ff469b687ad551b105226ea5d84c5137e8cbba0e12c134fa53b620b6fa90bbb2ee0fe1f590d05eec79f70c21399946be6c87d2ff7b698c77a775807917114d4@127.0.0.1:30303",     // SSD Archive - Ed
         NULL },
 
-    // Local - Geth
-    { "enode://654580048e9de8f7743ca38035c7ab7fbf2d59b6acd5b92cc031e4571b2c441fe9fc5bb261ada112fb39ca32c1ac7716d91a211b992693c9472ad6af42c5302a@127.0.0.1:30304",
+    { // Local - Geth
+        "enode://654580048e9de8f7743ca38035c7ab7fbf2d59b6acd5b92cc031e4571b2c441fe9fc5bb261ada112fb39ca32c1ac7716d91a211b992693c9472ad6af42c5302a@127.0.0.1:30304",
         NULL }
 };
 const BREthereumNetwork ethereumMainnet = &ethereumMainnetRecord;
@@ -158,7 +165,7 @@ MainnetChainConfig = &ChainConfig{
 // Testnet
 //
 static struct BREthereumNetworkRecord ethereumTestnetRecord = {
-    "Testnet",
+    "testnet", // aka "ropsten"
     3,
     EMPTY_HASH_INIT,
     EMPTY_HASH_INIT,
@@ -197,7 +204,7 @@ TestnetChainConfig = &ChainConfig{
 // Rinkeby
 //
 static struct BREthereumNetworkRecord ethereumRinkebyRecord = {
-    "Rinkeby",
+    "rinkeby",
     4,
     EMPTY_HASH_INIT,
     EMPTY_HASH_INIT,
@@ -232,9 +239,7 @@ RinkebyChainConfig = &ChainConfig{
 }
 */
 
-//
-// MARK: - Trusted Checkpoints
-//
+/// MARK: - Trusted Checkpoints
 
 /*
 // trustedCheckpoint represents a set of post-processed trie roots (CHT and BloomTrie) associated with

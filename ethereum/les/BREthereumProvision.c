@@ -3,25 +3,10 @@
 //  Core
 //
 //  Created by Ed Gamble on 9/4/18.
-//  Copyright (c) 2018 breadwallet LLC
+//  Copyright © 2018-2019 Breadwinner AG.  All rights reserved.
 //
-//  Permission is hereby granted, free of charge, to any person obtaining a copy
-//  of this software and associated documentation files (the "Software"), to deal
-//  in the Software without restriction, including without limitation the rights
-//  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-//  copies of the Software, and to permit persons to whom the Software is
-//  furnished to do so, subject to the following conditions:
-//
-//  The above copyright notice and this permission notice shall be included in
-//  all copies or substantial portions of the Software.
-//
-//  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-//  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-//  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-//  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-//  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-//  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-//  THE SOFTWARE.
+//  See the LICENSE file at the project root for license information.
+//  See the CONTRIBUTORS file at the project root for a list of contributors.
 
 #include "support/BRAssert.h"
 #include "BREthereumProvision.h"
@@ -514,7 +499,7 @@ provisionHandleMessageLES (BREthereumProvision *provisionMulti,
     return status;
 }
 
-/// MARK: PIP
+/// MARK: - PIP
 
 static BREthereumMessage
 provisionCreateMessagePIP (BREthereumProvision *provisionMulti,
@@ -1102,34 +1087,26 @@ provisionCopy (BREthereumProvision *provision,
 }
 
 extern void
-provisionRelease (BREthereumProvision *provision,
-                  BREthereumBoolean releaseResults) {
+provisionReleaseResults (BREthereumProvision *provision) {
     switch (provision->type) {
-
         case PROVISION_BLOCK_HEADERS:
-            if (ETHEREUM_BOOLEAN_IS_TRUE(releaseResults) && NULL != provision->u.headers.headers)
+            if (NULL != provision->u.headers.headers)
                 // Sometimes the headers will be NULL - because we preallocated the response.
                 blockHeadersRelease(provision->u.headers.headers);
             break;
 
         case PROVISION_BLOCK_PROOFS:
-            if (NULL != provision->u.proofs.numbers)
-                array_free (provision->u.proofs.numbers);
-            if (ETHEREUM_BOOLEAN_IS_TRUE(releaseResults) && NULL != provision->u.proofs.proofs)
+            if (NULL != provision->u.proofs.proofs)
                 array_free (provision->u.proofs.proofs);
             break;
-            
+
         case PROVISION_BLOCK_BODIES:
-            if (NULL != provision->u.bodies.hashes)
-                array_free (provision->u.bodies.hashes);
-            if (ETHEREUM_BOOLEAN_IS_TRUE(releaseResults) && NULL != provision->u.bodies.pairs)
+            if (NULL != provision->u.bodies.pairs)
                 blockBodyPairsRelease(provision->u.bodies.pairs);
             break;
 
         case PROVISION_TRANSACTION_RECEIPTS:
-            if (NULL != provision->u.receipts.hashes)
-                array_free (provision->u.receipts.hashes);
-            if (ETHEREUM_BOOLEAN_IS_TRUE(releaseResults) && NULL != provision->u.receipts.receipts) {
+            if (NULL != provision->u.receipts.receipts) {
                 size_t count = array_count(provision->u.receipts.receipts);
                 for (size_t index = 0; index < count; index++)
                     transactionReceiptsRelease (provision->u.receipts.receipts[index]);
@@ -1138,17 +1115,50 @@ provisionRelease (BREthereumProvision *provision,
             break;
 
         case PROVISION_ACCOUNTS:
+            if (NULL != provision->u.accounts.accounts)
+                array_free (provision->u.accounts.accounts);
+            break;
+
+        case PROVISION_TRANSACTION_STATUSES:
+            if (NULL != provision->u.statuses.statuses)
+                array_free (provision->u.statuses.statuses);
+            break;
+
+        case PROVISION_SUBMIT_TRANSACTION:
+            break;
+    }
+}
+
+extern void
+provisionRelease (BREthereumProvision *provision,
+                  BREthereumBoolean releaseResults) {
+    switch (provision->type) {
+        case PROVISION_BLOCK_HEADERS:
+            break;
+
+        case PROVISION_BLOCK_PROOFS:
+            if (NULL != provision->u.proofs.numbers)
+                array_free (provision->u.proofs.numbers);
+            break;
+            
+        case PROVISION_BLOCK_BODIES:
+            if (NULL != provision->u.bodies.hashes)
+                array_free (provision->u.bodies.hashes);
+            break;
+
+        case PROVISION_TRANSACTION_RECEIPTS:
+            if (NULL != provision->u.receipts.hashes)
+                array_free (provision->u.receipts.hashes);
+            break;
+
+        case PROVISION_ACCOUNTS:
             if (NULL != provision->u.accounts.hashes)
                 array_free (provision->u.accounts.hashes);
-            if (ETHEREUM_BOOLEAN_IS_TRUE(releaseResults) && NULL != provision->u.accounts.accounts)
-                array_free (provision->u.accounts.accounts);
             break;
 
         case PROVISION_TRANSACTION_STATUSES:
             if (NULL != provision->u.statuses.hashes)
                 array_free (provision->u.statuses.hashes);
-            if (ETHEREUM_BOOLEAN_IS_TRUE(releaseResults) && NULL != provision->u.statuses.statuses)
-                array_free (provision->u.statuses.statuses);
             break;
 
         case PROVISION_SUBMIT_TRANSACTION:
@@ -1156,6 +1166,9 @@ provisionRelease (BREthereumProvision *provision,
                 transactionRelease (provision->u.submission.transaction);
             break;
     }
+
+    if (ETHEREUM_BOOLEAN_IS_TRUE(releaseResults))
+        provisionReleaseResults(provision);
 }
 
 extern void

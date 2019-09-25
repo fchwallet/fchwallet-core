@@ -3,25 +3,10 @@
 //  BRCore
 //
 //  Created by Ed Gamble on 5/15/18.
-//  Copyright (c) 2018 breadwallet LLC
+//  Copyright © 2018-2019 Breadwinner AG.  All rights reserved.
 //
-//  Permission is hereby granted, free of charge, to any person obtaining a copy
-//  of this software and associated documentation files (the "Software"), to deal
-//  in the Software without restriction, including without limitation the rights
-//  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-//  copies of the Software, and to permit persons to whom the Software is
-//  furnished to do so, subject to the following conditions:
-//
-//  The above copyright notice and this permission notice shall be included in
-//  all copies or substantial portions of the Software.
-//
-//  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-//  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-//  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-//  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-//  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-//  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-//  THE SOFTWARE.
+//  See the LICENSE file at the project root for license information.
+//  See the CONTRIBUTORS file at the project root for a list of contributors.
 
 #include <stdlib.h>
 #include <assert.h>
@@ -37,6 +22,7 @@ transactionGetErrorName (BREthereumTransactionErrorType type) {
         "* gas too low",
         "* replacement under-pricesd",
         "* dropped",
+        "* already known",
         "* unknown"
     };
 
@@ -112,7 +98,6 @@ transactionStatusEqual (BREthereumTransactionStatus ts1,
                                  0 == strcmp (ts1.u.errored.detail, ts2.u.errored.detail))));
 }
 
-
 extern BREthereumTransactionErrorType
 lookupTransactionErrorType (const char *reasons[],
                             const char *reason) {
@@ -126,16 +111,13 @@ lookupTransactionErrorType (const char *reasons[],
     return TRANSACTION_ERROR_UNKNOWN;
 }
 
-//
-// NOTE: THIS IS LES SPECIFIC
-//
 extern BREthereumTransactionStatus
 transactionStatusRLPDecode (BRRlpItem item,
                             const char *reasons[],
                             BRRlpCoder coder) {
     size_t itemsCount = 0;
     const BRRlpItem *items = rlpDecodeList(coder, item, &itemsCount);
-    assert (3 == itemsCount); // [type, [blockHash blockNumber, txIndex], error]
+    assert (3 == itemsCount); // [type, [blockHash, blockNumber, txIndex], error]
 
     // We have seen (many) cases where the `type` is `unknown` but there is an `error`.  That
     // appears to violate the LES specfication.  Anyways, if we see an `error` we'll force the
@@ -145,7 +127,8 @@ transactionStatusRLPDecode (BRRlpItem item,
         BREthereumTransactionErrorType type = lookupTransactionErrorType (reasons, reason);
         BREthereumTransactionStatus status = transactionStatusCreateErrored (type, reason);
         free (reason);
-        return status;
+        // CORE-264: We always consider an 'already known' error as 'pending'
+        return TRANSACTION_ERROR_ALREADY_KNOWN != type ? status : transactionStatusCreate(TRANSACTION_STATUS_PENDING);
     }
     if (NULL != reason) free (reason);
 
@@ -160,27 +143,32 @@ transactionStatusRLPDecode (BRRlpItem item,
         case TRANSACTION_STATUS_INCLUDED: {
             size_t othersCount;
             const BRRlpItem *others = rlpDecodeList(coder, items[1], &othersCount);
-            assert (3 == othersCount);
+
+            // The 'encode' function produces '5' others; however, for consistency with delivered
+            // code with an existing archival value, we keep '3' around.
+            assert (5 == othersCount || 3 == othersCount);
 
             return transactionStatusCreateIncluded (hashRlpDecode(others[0], coder),
                                                     rlpDecodeUInt64(coder, others[1], 0),
                                                     rlpDecodeUInt64(coder, others[2], 0),
-                                                    TRANSACTION_STATUS_BLOCK_TIMESTAMP_UNKNOWN,
-                                                    gasCreate(0));
+                                                    (3 == othersCount
+                                                     ? TRANSACTION_STATUS_BLOCK_TIMESTAMP_UNKNOWN
+                                                     : rlpDecodeUInt64(coder, others[3], 0)),
+                                                    (3 == othersCount
+                                                     ? gasCreate(0)
+                                                     : gasRlpDecode(others[4], coder)));
         }
         
         case TRANSACTION_STATUS_ERRORED: {
             // We should not be here....
             BREthereumTransactionErrorType type = (BREthereumTransactionErrorType) rlpDecodeUInt64 (coder, items[2], 0);
-            BREthereumTransactionStatus status = transactionStatusCreateErrored (type, transactionGetErrorName (type));
-            return status;
+            return (TRANSACTION_ERROR_ALREADY_KNOWN != type
+                    ? transactionStatusCreateErrored (type, transactionGetErrorName (type))
+                    : transactionStatusCreate(TRANSACTION_STATUS_PENDING));
         }
     }
 }
 
-//
-// NOTE: THIS IS LES SPECIFIC
-//
 extern BRRlpItem
 transactionStatusRLPEncode (BREthereumTransactionStatus status,
                             BRRlpCoder coder) {
@@ -197,10 +185,12 @@ transactionStatusRLPEncode (BREthereumTransactionStatus status,
             break;
 
         case TRANSACTION_STATUS_INCLUDED:
-            items[1] = rlpEncodeList(coder, 3,
-                                     hashRlpEncode(status.u.included.blockHash, coder),
-                                     rlpEncodeUInt64(coder, status.u.included.blockNumber, 0),
-                                     rlpEncodeUInt64(coder, status.u.included.transactionIndex, 0));
+            items[1] = rlpEncodeList (coder, 5,
+                                      hashRlpEncode(status.u.included.blockHash, coder),
+                                      rlpEncodeUInt64(coder, status.u.included.blockNumber, 0),
+                                      rlpEncodeUInt64(coder, status.u.included.transactionIndex, 0),
+                                      rlpEncodeUInt64(coder, status.u.included.blockTimestamp, 0),
+                                      gasRlpEncode(status.u.included.gasUsed, coder));
             items[2] = rlpEncodeString(coder, "");
 
             break;

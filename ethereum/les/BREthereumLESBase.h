@@ -3,38 +3,20 @@
 //  Core
 //
 //  Created by Ed Gamble on 9/1/18.
-//  Copyright (c) 2018 breadwallet LLC
+//  Copyright © 2018-2019 Breadwinner AG.  All rights reserved.
 //
-//  Permission is hereby granted, free of charge, to any person obtaining a copy
-//  of this software and associated documentation files (the "Software"), to deal
-//  in the Software without restriction, including without limitation the rights
-//  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-//  copies of the Software, and to permit persons to whom the Software is
-//  furnished to do so, subject to the following conditions:
-//
-//  The above copyright notice and this permission notice shall be included in
-//  all copies or substantial portions of the Software.
-//
-//  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-//  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-//  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-//  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-//  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-//  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-//  THE SOFTWARE.
+//  See the LICENSE file at the project root for license information.
+//  See the CONTRIBUTORS file at the project root for a list of contributors.
 
 #ifndef BR_Ethereum_LES_Base_H
 #define BR_Ethereum_LES_Base_H
 
-#include "BRSet.h"
-#include "BRArray.h"
-#include "../util/BRUtil.h"
-#include "../rlp/BRRlp.h"
-#include "../base/BREthereumHash.h"
-#include "../blockchain/BREthereumNetwork.h"
-
-#define BRArrayOf(type)    type*
-#define BRSetOf(type)      BRSet*
+#include "support/BRSet.h"
+#include "support/BRArray.h"
+#include "ethereum/util/BRUtil.h"
+#include "ethereum/rlp/BRRlp.h"
+#include "ethereum/base/BREthereumHash.h"
+#include "ethereum/blockchain/BREthereumNetwork.h"
 
 #define DEFAULT_UDPPORT     (30303)
 #define DEFAULT_TCPPORT     (30303)
@@ -59,30 +41,36 @@
  * We can optionally only bootstrap from a BRD server.  Setting this overrides the subsequent
  * LES_BOOTSTRAP_LCL_ONLY
  */
-// #define LES_BOOTSTRAP_BRD_ONLY
+#define LES_BOOTSTRAP_BRD_ONLY
 
 /**
  * For debugging only, we can optionally only bootstrap from a LCL (local) server.
  */
-//#define LES_BOOTSTRAP_LCL_ONLY
-
 #if defined (LES_BOOTSTRAP_BRD_ONLY) || defined (NDEBUG) || !defined (DEBUG)
 #undef LES_BOOTSTRAP_LCL_ONLY
 #endif
+
+//#define LES_BOOTSTRAP_LCL_ONLY
 
 /**
  * For debugging only, we can optionally disable P2P Node Discovery.  This is very useful for
  * performance and memory allocation/leak analysis
  */
-// #define LES_DISABLE_DISCOVERY
-
 #if defined (NDEBUG) || !defined (DEBUG)
 #undef LES_DISABLE_DISCOVERY
 #endif
 
+#define LES_DISABLE_DISCOVERY
+
 /**
- * We we attempt to open a socket to a node endpoint and the socket reports EINPROGRESS, we'll
- * select() on the socket with this timeout.
+ * If we attempt to open a socket to a node endpoint and the socket reports EINPROGRESS, we'll
+ * select() on the socket with this timeout.  See CORE-265.  This occurs on the LES thread and
+ * is a blocking operation - blocking *all* other nodes.  We should consider attempting to resolve
+ * an EINPROGRESS by introducing another 'connecting' state (between OPEN and AUTH).  That new
+ * state will wait on the 'write file descriptor' and then do `getsockopt()` - if success then
+ * move to AUTH otherwise error.
+ *
+ * But, the above is too onerous at this time.  We can wait; nobody is going any where.
  */
 #define NODE_ENDPOINT_OPEN_SOCKET_TIMEOUT 3.0
 
@@ -96,17 +84,19 @@
  */
 #define P2P_MESSAGE_VERSION     0x04
 
-// The number of nodes the should be maintained as 'active' (aka 'connected').  Once connected we
+// The number of nodes that should be maintained as 'active' (aka 'connected').  Once connected we
 // will get announcements of new blocks.  When a transaction is submitted we'll submit it to *all*
 // active nodes.  We will need multiple active nodes for submissions as we *routinely* see nodes
 // simply dropping submission outright, quietly.
-#define LES_ACTIVE_NODE_COUNT 4
+#define LES_ACTIVE_NODE_COUNT 3
 
 // When discovering nodes (on UDP) don't allow more then LES_ACTIVE_NODE_UDP_LIMIT nodes to be
 // actively discovering at once.
 #define LES_ACTIVE_NODE_UDP_LIMIT 3
 
-// The numver of nodes that should be available.
+// The number of nodes that should be available.  We'll discover nodes until we reach this count.
+// Note that this doesn mean that the nodes are LESv2 or PIPv1 nodes - they are just nodes.  As
+// we explore individual nodes they may become unavailable and we'll need to discover more.
 #define LES_AVAILABLE_NODES_COUNT     (100)
 
 // For a request with a nodeIndex that is not LES_PREFERRED_NODE_INDEX, the intention is to send

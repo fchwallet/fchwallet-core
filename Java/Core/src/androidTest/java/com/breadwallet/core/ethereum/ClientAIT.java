@@ -1,3 +1,12 @@
+/*
+ * ClientAIT
+ *
+ * Created by Ed Gamble <ed@breadwallet.com> on 3/20/18.
+ * Copyright (c) 2018-2019 Breadwinner AG.  All right reserved.
+ *
+ * See the LICENSE file at the project root for license information.
+ * See the CONTRIBUTORS file at the project root for a list of contributors.
+ */
 package com.breadwallet.core.ethereum;
 
 import android.content.Context;
@@ -47,7 +56,7 @@ public class ClientAIT implements BREthereumEWM.Client {
         storagePath = storageFile.getAbsolutePath();
 
         this.network = network;
-        this.ewm = new BREthereumEWM (this, network, storagePath, paperKey, words);
+        this.ewm = new BREthereumEWM (this, BREthereumEWM.Mode.API_ONLY, network, storagePath, paperKey, words);
     }
 
     @Override

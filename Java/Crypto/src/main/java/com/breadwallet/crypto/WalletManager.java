@@ -1,70 +1,79 @@
+/*
+ * WalletManager
+ *
+ * Created by Ed Gamble <ed@breadwallet.com> on 1/22/18.
+ * Copyright (c) 2018-2019 Breadwinner AG.  All right reserved.
+ *
+ * See the LICENSE file at the project root for license information.
+ * See the CONTRIBUTORS file at the project root for a list of contributors.
+ */
 package com.breadwallet.crypto;
 
-public abstract class WalletManager {
-    public interface Listener {
+import android.support.annotation.Nullable;
 
-    }
+import com.breadwallet.crypto.errors.WalletSweeperError;
+import com.breadwallet.crypto.utility.CompletionHandler;
+import com.google.common.base.Optional;
 
-    public interface PersistenceClient {
+import java.util.List;
 
-    }
+public interface WalletManager {
 
-    public interface BackendClient {
+    void createSweeper(Wallet wallet, Key key, CompletionHandler<WalletSweeper, WalletSweeperError> completion);
 
-    }
+    void connect(@Nullable NetworkPeer peer);
 
-    public final Account account;
+    void disconnect();
 
-    public final Network network;
+    void sync();
 
-    public final Listener listener;
+    void syncToDepth(WalletManagerSyncDepth depth);
 
-/*
-    /// The listener receives Wallet, Transfer and perhaps other asynchronous events.
-    var listener: WalletManagerListener { get }
+    void submit(Transfer transfer, byte[] phraseUtf8);
 
-    /// The account
-    var account: Account { get }
+    boolean isActive();
 
-    /// The network
-    var network: Network { get }
+    System getSystem();
 
-    /// The primaryWallet
-    var primaryWallet: Wallet { get }
+    Account getAccount();
 
-    /// The managed wallets - often will just be [primaryWallet]
-    var wallets: [Wallet] { get }
+    Network getNetwork();
 
-    // The mode determines how the manager manages the account and wallets on network
-    var mode: WalletManagerMode { get }
+    Wallet getPrimaryWallet();
 
-    // The file-system path to use for persistent storage.
-    var path: String { get }  // persistent storage
+    List<? extends Wallet> getWallets();
 
-    var state: WalletManagerState { get }
+    /**
+     * Ensure that a wallet for currency exists.  If the wallet already exists, it is returned.
+     * If the wallet needs to be created then `nil` is returned and a series of events will
+     * occur - notably WalletEvent.created and WalletManagerEvent.walletAdded if the wallet is
+     * created
+     *
+     * Note: There is a precondition on `currency` being one in the managers' network
+     *
+     * @return The wallet for currency if it already exists, otherwise "absent"
+     */
+    Optional<? extends Wallet> registerWalletFor(Currency currency);
 
-    #if false
-    /// The default WalletFactory for creating wallets.
-    var walletFactory: WalletFactory { get set }
-    #endif
+    WalletManagerMode getMode();
 
-    /// Connect to network and begin managing wallets for account
-    func connect ()
+    void setMode(WalletManagerMode mode);
 
-    /// Disconnect from the network.
-    func disconnect ()
+    String getPath();
 
-    /// isConnected
-    /// sync(...)
-    /// isSyncing
+    Currency getCurrency();
 
-    /// sign(transfer)
-    /// submit(transfer)
-*/
+    String getName();
 
-    protected WalletManager (Listener listener, Account account, Network network) {
-        this.listener = listener;
-        this.account = account;
-        this.network = network;
-    }
+    Unit getBaseUnit();
+
+    Unit getDefaultUnit();
+
+    NetworkFee getDefaultNetworkFee();
+
+    WalletManagerState getState();
+
+    void setAddressScheme(AddressScheme scheme);
+
+    AddressScheme getAddressScheme();
 }

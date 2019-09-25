@@ -1,33 +1,17 @@
 //  Created by Ed Gamble on 1/23/2018
-//  Copyright (c) 2018 breadwallet LLC.
+//  Copyright (c) 2018 Breadwinner AG.  All right reserved.
 //
-//  Permission is hereby granted, free of charge, to any person obtaining a copy
-//  of this software and associated documentation files (the "Software"), to deal
-//  in the Software without restriction, including without limitation the rights
-//  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-//  copies of the Software, and to permit persons to whom the Software is
-//  furnished to do so, subject to the following conditions:
-//
-//  The above copyright notice and this permission notice shall be included in
-//  all copies or substantial portions of the Software.
-//
-//  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-//  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-//  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-//  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-//  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-//  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-//  THE SOFTWARE.
+//  See the LICENSE file at the project root for license information.
+//  See the CONTRIBUTORS file at the project root for a list of contributors.
 
 #include <stdlib.h>
-#include <malloc.h>
 #include <assert.h>
-#include <BRBIP39Mnemonic.h>
-#include "BRWallet.h"
-#include "BRAddress.h"
 #include "BRCoreJni.h"
-#include "BRTransaction.h"
-#include "BRPeerManager.h"
+#include "support/BRAddress.h"
+#include "support/BRBIP39Mnemonic.h"
+#include "bitcoin/BRWallet.h"
+#include "bitcoin/BRTransaction.h"
+#include "bitcoin/BRPeerManager.h"
 #include "com_breadwallet_core_BRCoreWallet.h"
 #include "com_breadwallet_core_BRCoreTransaction.h"
 
@@ -74,24 +58,25 @@ Java_com_breadwallet_core_BRCoreWallet_createJniCoreWallet
          jobject objMasterPubKey,
          jint forkId) {
 
-    BRMasterPubKey *masterPubKey = (BRMasterPubKey *) getJNIReference(env, objMasterPubKey);
-
-    // Transactions
-    size_t transactionsCount = (*env)->GetArrayLength(env, objTransactionsArray);
-    BRTransaction **transactions = (BRTransaction **) calloc (transactionsCount, sizeof (BRTransaction *));
-
-    for (int index = 0; index < transactionsCount; index++) {
-        jobject objTransaction = (*env)->GetObjectArrayElement (env, objTransactionsArray, index);
-        // TODO: Transaction Copy?  Confirm isRegistered.
-        transactions[index] = (BRTransaction *) getJNIReference(env, objTransaction);
-        (*env)->DeleteLocalRef (env, objTransaction);
-    }
-
-    BRWallet *wallet = BRWalletNew(transactions, transactionsCount, *masterPubKey, forkId);
-
-    if (NULL != transactions) free (transactions);
-
-    return (jlong) wallet;
+//    BRMasterPubKey *masterPubKey = (BRMasterPubKey *) getJNIReference(env, objMasterPubKey);
+//
+//    // Transactions
+//    size_t transactionsCount = (*env)->GetArrayLength(env, objTransactionsArray);
+//    BRTransaction **transactions = (BRTransaction **) calloc (transactionsCount, sizeof (BRTransaction *));
+//
+//    for (int index = 0; index < transactionsCount; index++) {
+//        jobject objTransaction = (*env)->GetObjectArrayElement (env, objTransactionsArray, index);
+//        // TODO: Transaction Copy?  Confirm isRegistered.
+//        transactions[index] = (BRTransaction *) getJNIReference(env, objTransaction);
+//        (*env)->DeleteLocalRef (env, objTransaction);
+//    }
+//
+//    BRWallet *wallet = BRWalletNew(transactions, transactionsCount, *masterPubKey, forkId);
+//
+//    if (NULL != transactions) free (transactions);
+//
+//    return (jlong) wallet;
+    return 0;
 }
 
 /*
@@ -414,25 +399,26 @@ Java_com_breadwallet_core_BRCoreWallet_signTransaction
         (JNIEnv *env, jobject thisObject,
          jobject transactionObject,
          jbyteArray phraseByteArray) {
-    BRWallet *wallet = (BRWallet *) getJNIReference(env, thisObject);
-    BRTransaction *transaction = (BRTransaction *) getJNIReference(env, transactionObject);
-
-    // Convert phraseByteArray to a char* phrase
-    size_t phraseLen = (size_t) (*env)->GetArrayLength(env, phraseByteArray);
-    const jbyte *phraseBytes = (const jbyte *) (*env)->GetByteArrayElements(env, phraseByteArray, 0);
-
-    char phrase [1 + phraseLen];
-    memcpy (phrase, phraseBytes, phraseLen);
-    phrase[phraseLen] = '\0';
-
-    // Convert phrase to its BIP38 512 bit seed.
-    UInt512 seed;
-    BRBIP39DeriveKey (&seed, phrase, NULL);
-
-    // Sign with the seed
-    return (jboolean) (1 == BRWalletSignTransaction(wallet, transaction, &seed, sizeof(seed))
-                       ? JNI_TRUE
-                       : JNI_FALSE);
+//    BRWallet *wallet = (BRWallet *) getJNIReference(env, thisObject);
+//    BRTransaction *transaction = (BRTransaction *) getJNIReference(env, transactionObject);
+//
+//    // Convert phraseByteArray to a char* phrase
+//    size_t phraseLen = (size_t) (*env)->GetArrayLength(env, phraseByteArray);
+//    const jbyte *phraseBytes = (const jbyte *) (*env)->GetByteArrayElements(env, phraseByteArray, 0);
+//
+//    char phrase [1 + phraseLen];
+//    memcpy (phrase, phraseBytes, phraseLen);
+//    phrase[phraseLen] = '\0';
+//
+//    // Convert phrase to its BIP38 512 bit seed.
+//    UInt512 seed;
+//    BRBIP39DeriveKey (&seed, phrase, NULL);
+//
+//    // Sign with the seed
+//    return (jboolean) (1 == BRWalletSignTransaction(wallet, transaction, &seed, sizeof(seed))
+//                       ? JNI_TRUE
+//                       : JNI_FALSE);
+    return JNI_FALSE;
 }
 
 /*

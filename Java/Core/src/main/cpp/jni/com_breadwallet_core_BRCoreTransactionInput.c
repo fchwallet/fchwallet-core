@@ -1,31 +1,15 @@
 //  Created by Ed Gamble on 1/31/2018
-//  Copyright (c) 2018 breadwallet LLC.
+//  Copyright (c) 2018 Breadwinner AG.  All right reserved.
 //
-//  Permission is hereby granted, free of charge, to any person obtaining a copy
-//  of this software and associated documentation files (the "Software"), to deal
-//  in the Software without restriction, including without limitation the rights
-//  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-//  copies of the Software, and to permit persons to whom the Software is
-//  furnished to do so, subject to the following conditions:
-//
-//  The above copyright notice and this permission notice shall be included in
-//  all copies or substantial portions of the Software.
-//
-//  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-//  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-//  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-//  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-//  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-//  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-//  THE SOFTWARE.
+//  See the LICENSE file at the project root for license information.
+//  See the CONTRIBUTORS file at the project root for a list of contributors.
 
-#include "BRCoreJni.h"
 #include <stdlib.h>
-#include <malloc.h>
 #include <assert.h>
 #include <string.h>
-#include <BRInt.h>
-#include <BRTransaction.h>
+#include "BRCoreJni.h"
+#include "support/BRInt.h"
+#include "bitcoin/BRTransaction.h"
 #include "com_breadwallet_core_BRCoreTransactionInput.h"
 
 /*
@@ -47,7 +31,7 @@ JNIEXPORT jlong JNICALL Java_com_breadwallet_core_BRCoreTransactionInput_createT
 
     input->txHash = UInt256Get((const void *) hashData);
     input->index = (uint32_t) index;
-    input->amount = (uint32_t) amount;
+    input->amount = (uint64_t) amount;
 
     // script
     input->script = NULL;
@@ -88,14 +72,15 @@ JNIEXPORT jlong JNICALL Java_com_breadwallet_core_BRCoreTransactionInput_createT
  */
 JNIEXPORT jstring JNICALL Java_com_breadwallet_core_BRCoreTransactionInput_getAddress
         (JNIEnv *env, jobject thisObject) {
-    BRTxInput *input = (BRTxInput *) getJNIReference (env, thisObject);
-    
-    size_t addressLen = sizeof (input->address);
-    char address[1 + addressLen];
-    memcpy (address, input->address, addressLen);
-    address[addressLen] = '\0';
-
-    return (*env)->NewStringUTF (env, address);
+//    BRTxInput *input = (BRTxInput *) getJNIReference (env, thisObject);
+//
+//    size_t addressLen = sizeof (input->address);
+//    char address[1 + addressLen];
+//    memcpy (address, input->address, addressLen);
+//    address[addressLen] = '\0';
+//
+//    return (*env)->NewStringUTF (env, address);
+    return NULL;
 }
 
 /*
@@ -105,16 +90,16 @@ JNIEXPORT jstring JNICALL Java_com_breadwallet_core_BRCoreTransactionInput_getAd
  */
 JNIEXPORT void JNICALL Java_com_breadwallet_core_BRCoreTransactionInput_setAddress
         (JNIEnv *env, jobject thisObject , jstring addressObject) {
-    BRTxInput *input = (BRTxInput *) getJNIReference (env, thisObject);
-    
-    size_t addressLen = sizeof (input->address);
-
-    size_t addressDataLen = (size_t) (*env)->GetStringLength (env, addressObject);
-    const jchar *addressData = (*env)->GetStringChars (env, addressObject, 0);
-    assert (addressDataLen <= addressLen);
-
-    memset (input->address, '\0', addressLen);
-    memcpy (input->address, addressData, addressDataLen);
+//    BRTxInput *input = (BRTxInput *) getJNIReference (env, thisObject);
+//
+//    size_t addressLen = sizeof (input->address);
+//
+//    size_t addressDataLen = (size_t) (*env)->GetStringLength (env, addressObject);
+//    const jchar *addressData = (*env)->GetStringChars (env, addressObject, 0);
+//    assert (addressDataLen <= addressLen);
+//
+//    memset (input->address, '\0', addressLen);
+//    memcpy (input->address, addressData, addressDataLen);
 
 }
 

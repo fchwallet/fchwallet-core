@@ -3,34 +3,18 @@
 //  Core
 //
 //  Created by Ed Gamble on 7/9/18.
-//  Copyright (c) 2018 breadwallet LLC
+//  Copyright © 2018-2019 Breadwinner AG.  All rights reserved.
 //
-//  Permission is hereby granted, free of charge, to any person obtaining a copy
-//  of this software and associated documentation files (the "Software"), to deal
-//  in the Software without restriction, including without limitation the rights
-//  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-//  copies of the Software, and to permit persons to whom the Software is
-//  furnished to do so, subject to the following conditions:
-//
-//  The above copyright notice and this permission notice shall be included in
-//  all copies or substantial portions of the Software.
-//
-//  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-//  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-//  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-//  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-//  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-//  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-//  THE SOFTWARE.
+//  See the LICENSE file at the project root for license information.
+//  See the CONTRIBUTORS file at the project root for a list of contributors.
 
 #ifndef BR_Ethereum_Transfer_H
 #define BR_Ethereum_Transfer_H
 
-#include "../base/BREthereumBase.h"
-#include "../blockchain/BREthereumNetwork.h"
-#include "../blockchain/BREthereumTransaction.h"
-#include "../blockchain/BREthereumLog.h"
-
+#include "ethereum/base/BREthereumBase.h"
+#include "ethereum/blockchain/BREthereumNetwork.h"
+#include "ethereum/blockchain/BREthereumTransaction.h"
+#include "ethereum/blockchain/BREthereumLog.h"
 #include "BREthereumBase.h"
 #include "BREthereumAmount.h"
 #include "BREthereumAccount.h"
@@ -38,8 +22,6 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-//typedef struct BREthereumTransferRecord *BREthereumTransfer;
 
 #define TRANSACTION_NONCE_IS_NOT_ASSIGNED   UINT64_MAX
 
@@ -103,6 +85,10 @@ transferGetAmount (BREthereumTransfer transfer);
 extern BREthereumFeeBasis
 transferGetFeeBasis (BREthereumTransfer transfer);
 
+extern void // Private-ish
+transferSetFeeBasis (BREthereumTransfer transfer,
+                     BREthereumFeeBasis feeBasis);
+
 extern BREthereumGas
 transferGetGasEstimate (BREthereumTransfer transfer);
 
@@ -133,35 +119,30 @@ transferSignWithKey (BREthereumTransfer transfer,
                      BREthereumAddress address,
                      BRKey privateKey);
 
-//
-//
-//
-#if defined TRANSFER_FEES_AND_STUFF
-/**
- * Return the maximum fee (in Ether) for transfer (as gasLimit * gasPrice).
- */
-extern BREthereumEther
-transferGetFeeLimit (BREthereumTransfer transfer, int *overflow);
-
-extern BREthereumGasPrice
-transferGetGasPrice (BREthereumTransfer transfer);
-
-extern void
-transferSetGasPrice (BREthereumTransfer transfer,
-                     BREthereumGasPrice gasPrice);
-
-extern BREthereumGas
-transferGetGasLimit (BREthereumTransfer transfer);
-
-extern void
-transferSetGasLimit (BREthereumTransfer transfer,
-                     BREthereumGas gasLimit);
-#endif
-
 // TODO: If not signed? submitted?
-extern const BREthereumHash
-transferGetHash (BREthereumTransfer transfer);
 
+/**
+ * Return the transfer's unique identifier; however, it is guaranteed to exist if-and-only-if the
+ * transfer's basis has been included in the block chain.  Specifically, if the transfer's basis
+ * is a Log then until included we don't even have a Log.
+ *
+ * @param transfer
+ *
+ * @return The unique hash or HASH_EMPTY_INIT if the transfer is not in the block chain.
+ */
+extern const BREthereumHash
+transferGetIdentifier (BREthereumTransfer transfer);
+
+/**
+ * Return the hash of the transfer's originating transaction.  Multiple transfers might share the
+ * same originating transaction and thus the same hash.  For example, an ERC20 exchange would have
+ * a 'fee transfer' and a 'token transfer' with the same originating transaction.  Another example
+ * would be a single transfer that produced N (> 1) logs (albeit this is not supported yet).
+ *
+ * @param transfer
+ *
+ * @return the originating transactions hash or HAHS_EMPTY_INIT
+ */
 extern const BREthereumHash
 transferGetOriginatingTransactionHash (BREthereumTransfer transfer);
 
@@ -179,13 +160,28 @@ extern BREthereumComparison
 transferCompare (BREthereumTransfer t1,
                  BREthereumTransfer t2);
 
+
+/**
+ * Make `transaction` the basis for `transfer`.  If `transfer` is not based on TRANSACTION, then
+ * an assertion is raised.  If `transfer` already has a basis, then that transaction is released.
+ *
+ * @param transfer
+ * @param transaction
+ */
 extern void
 transferSetBasisForTransaction (BREthereumTransfer transfer,
-                                BREthereumTransaction transaction);
+                                OwnershipGiven BREthereumTransaction transaction);
 
+/**
+ * Make `log` the basis for `transfer`.  If `transfer` is not based on LOG, then an assertion
+ * is raised.  If `transfer` already has a basis, then that log is released.
+ *
+ * @param transfer
+ * @param log
+ */
 extern void
 transferSetBasisForLog (BREthereumTransfer transfer,
-                        BREthereumLog log);
+                        OwnershipGiven BREthereumLog log);
 
 //
 //
@@ -242,6 +238,19 @@ transferStatusEqual (BREthereumTransferStatus status1,
 
 extern BREthereumTransferStatus
 transferStatusCreate (BREthereumTransactionStatus status);
+
+// Returns Ether appropriate for encoding a transaction.  If the transaction is for a TOKEN,
+// then the returned Ether is zero (because the amount of a TOKEN transfer is encoded in the
+// contract's function call, in the transaction.data field).
+private_extern BREthereumEther
+transferGetEffectiveAmountInEther (BREthereumTransfer transfer);
+
+private_extern BREthereumAddress
+transferGetEffectiveTargetAddress (BREthereumTransfer transfer);
+
+private_extern BREthereumAddress
+transferGetEffectiveSourceAddress (BREthereumTransfer transfer);
+
 
 #ifdef __cplusplus
 }

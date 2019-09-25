@@ -3,7 +3,7 @@
 //  BRCore
 //
 //  Created by Ed Gamble on 2/4/19.
-//  Copyright © 2019 breadwallet. All rights reserved.
+//  Copyright © 2019 breadwallet LLC
 //
 //  Permission is hereby granted, free of charge, to any person obtaining a copy
 //  of this software and associated documentation files (the "Software"), to deal
@@ -30,9 +30,7 @@
 #include <limits.h>         // UINT_MAX
 #include <assert.h>
 #include "BRAssert.h"
-#include "../BRArray.h"
-
-#define BRArrayOf(type)             type*
+#include "BRArray.h"
 
 #define PTHREAD_NULL            ((pthread_t) NULL)
 

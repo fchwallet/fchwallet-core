@@ -3,13 +3,14 @@
 //  CoreTests
 //
 //  Created by Ed Gamble on 7/23/18.
-//  Copyright © 2018 breadwallet. All rights reserved.
+//  Copyright © 2018-2019 Breadwinner AG.  All rights reserved.
 //
+//  See the LICENSE file at the project root for license information.
+//  See the CONTRIBUTORS file at the project root for a list of contributors.
 
 #include <stdio.h>
 #include <string.h>
 #include <assert.h>
-
 #include "BREthereumBlockChain.h"
 
 //
@@ -369,7 +370,7 @@ runLogTests (void) {
 
     BREthereumHash statusArchiveTxHash;
     size_t statusArchiveIndex;
-    logExtractIdentifier(logArchived, &statusArchiveTxHash, &statusArchiveIndex);
+    assert (ETHEREUM_BOOLEAN_IS_TRUE (logExtractIdentifier(logArchived, &statusArchiveTxHash, &statusArchiveIndex)));
 //    assert (ETHEREUM_BOOLEAN_IS_TRUE(hashEqual(status.identifier.transactionHash, statusArchiveTxHash)));
     assert (ETHEREUM_BOOLEAN_IS_TRUE(hashEqual (someTxHash, statusArchiveTxHash)));
 

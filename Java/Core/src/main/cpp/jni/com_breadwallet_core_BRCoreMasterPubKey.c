@@ -1,32 +1,15 @@
 //  Created by Ed Gamble on 1/23/2018
-//  Copyright (c) 2018 breadwallet LLC.
+//  Copyright (c) 2018 Breadwinner AG.  All right reserved.
 //
-//  Permission is hereby granted, free of charge, to any person obtaining a copy
-//  of this software and associated documentation files (the "Software"), to deal
-//  in the Software without restriction, including without limitation the rights
-//  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-//  copies of the Software, and to permit persons to whom the Software is
-//  furnished to do so, subject to the following conditions:
-//
-//  The above copyright notice and this permission notice shall be included in
-//  all copies or substantial portions of the Software.
-//
-//  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-//  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-//  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-//  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-//  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-//  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-//  THE SOFTWARE.
+//  See the LICENSE file at the project root for license information.
+//  See the CONTRIBUTORS file at the project root for a list of contributors.
 
 #include <stdlib.h>
-#include <malloc.h>
 #include <string.h>
-#include <BRBIP32Sequence.h>
 #include <assert.h>
-#include "BRBIP39Mnemonic.h"
-#include "BRBIP32Sequence.h"
 #include "BRCoreJni.h"
+#include "support/BRBIP32Sequence.h"
+#include "support/BRBIP39Mnemonic.h"
 #include "com_breadwallet_core_BRCoreMasterPubKey.h"
 
 /*
@@ -168,21 +151,22 @@ Java_com_breadwallet_core_BRCoreMasterPubKey_createJniCoreMasterPubKeyFromSerial
 JNIEXPORT jbyteArray JNICALL
 Java_com_breadwallet_core_BRCoreMasterPubKey_bip32BitIDKey
         (JNIEnv *env, jclass thisClass, jbyteArray seed, jint index, jstring strUri) {
-    int seedLength = (*env)->GetArrayLength(env, seed);
-    const char *uri = (*env)->GetStringUTFChars(env, strUri, NULL);
-    jbyte *byteSeed = (*env)->GetByteArrayElements(env, seed, 0);
-
-    BRKey key;
-
-    BRBIP32BitIDKey(&key, byteSeed, (size_t) seedLength, (uint32_t) index, uri);
-
-    char rawKey[BRKeyPrivKey(&key, NULL, 0)];
-    BRKeyPrivKey(&key, rawKey, sizeof(rawKey));
-
-    jbyteArray result = (*env)->NewByteArray(env, (jsize) sizeof(rawKey));
-    (*env)->SetByteArrayRegion(env, result, 0, (jsize) sizeof(rawKey), (jbyte *) rawKey);
-
-    return result;
+//    int seedLength = (*env)->GetArrayLength(env, seed);
+//    const char *uri = (*env)->GetStringUTFChars(env, strUri, NULL);
+//    jbyte *byteSeed = (*env)->GetByteArrayElements(env, seed, 0);
+//
+//    BRKey key;
+//
+//    BRBIP32BitIDKey(&key, byteSeed, (size_t) seedLength, (uint32_t) index, uri);
+//
+//    char rawKey[BRKeyPrivKey(&key, NULL, 0)];
+//    BRKeyPrivKey(&key, rawKey, sizeof(rawKey));
+//
+//    jbyteArray result = (*env)->NewByteArray(env, (jsize) sizeof(rawKey));
+//    (*env)->SetByteArrayRegion(env, result, 0, (jsize) sizeof(rawKey), (jbyte *) rawKey);
+//
+//    return result;
+    return NULL;
 }
 
 /*

@@ -1,27 +1,12 @@
 //
 //  BREthereumLES.h
-//  breadwallet-core Ethereum
+//  Core Ethereum
 //
 //  Created by Lamont Samuels on 5/01/18.
-//  Copyright (c) 2018 breadwallet LLC
+//  Copyright © 2018-2019 Breadwinner AG.  All rights reserved.
 //
-//  Permission is hereby granted, free of charge, to any person obtaining a copy
-//  of this software and associated documentation files (the "Software"), to deal
-//  in the Software without restriction, including without limitation the rights
-//  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-//  copies of the Software, and to permit persons to whom the Software is
-//  furnished to do so, subject to the following conditions:
-//
-//  The above copyright notice and this permission notice shall be included in
-//  all copies or substantial portions of the Software.
-//
-//  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-//  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-//  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-//  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-//  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-//  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-//  THE SOFTWARE.
+//  See the LICENSE file at the project root for license information.
+//  See the CONTRIBUTORS file at the project root for a list of contributors.
 
 #include <string.h>
 #include <stdlib.h>
@@ -32,14 +17,11 @@
 #include <arpa/inet.h>
 #include <resolv.h>
 #include <netdb.h>
-
-#include "BRInt.h"
-#include "BRArray.h"
-
-#include "../rlp/BRRlp.h"
-#include "../util/BRUtil.h"
-#include "../base/BREthereumBase.h"
-
+#include "support/BRInt.h"
+#include "support/BRArray.h"
+#include "ethereum/rlp/BRRlp.h"
+#include "ethereum/util/BRUtil.h"
+#include "ethereum/base/BREthereumBase.h"
 #include "BREthereumLES.h"
 #include "BREthereumLESRandom.h"
 #include "BREthereumMessage.h"
@@ -292,12 +274,28 @@ requestsRelease (OwnershipGiven BRArrayOf(BREthereumLESRequest) requests) {
     }
 }
 
-///
 /// MARK: - LES
-///
 
 /**
- * LES
+ * An Ethereum LES handles Geth LESv2 and Parity PIPv1 messages sent on the Ethereum P2P network.
+ *
+ * LES operates on a single network and discovers nodes using the DIS (Discovery) Protocol.  LES
+ * attempts to identify a set number of nodes as neighbors - typically 100; these nodes are
+ * 'available'. LES also attempts to mainset a set number of active nodes - typically 3 or 4; these
+ * nodes are in a connected state and LES is receiving periodic block announcements.
+ *
+ * LES uses the active nodes for transaction submission.  (This is for a non-BRD_ONLY EWM mode).
+ *
+ * LES runs in its own thread and used events/messages and associated callbacks.
+ *
+ * The lesProvideXYZ functions are used by BCS to submit P2P requests to peers for processing.
+ * These functions have an explicit context+callback for results; because the data is provided
+ * asynchronously the context+callback needs to remain valid.
+ *
+ * The lesProvideXYZ functions provide a data abstracction over the specific node's light
+ * ethereum protocol.  Specifically, an individual node might be a GETH (LESv2) or a Parity (PIPv1)
+ * node with each type having protocol specific data structures, the lesProvideXYZ interface has
+ * an abstraction of the node specfic data.
  */
 struct BREthereumLESRecord {
 
@@ -330,7 +328,7 @@ struct BREthereumLESRecord {
     BRArrayOf(BREthereumNode) availableNodes;
 
     /** Active Nodes - a subset of `nodes` in a state of 'CONNECTED' or 'CONNECTING'.  We actively
-     * `select()` on these nodes to hanlde send/recv needs */
+     * `select()` on these nodes to handle send/recv needs */
     BRArrayOf(BREthereumNode) activeNodesByRoute[NUMBER_OF_NODE_ROUTES];
 
     /** Requests - pending, have not been provisioned to a node */
@@ -340,8 +338,8 @@ struct BREthereumLESRecord {
     BREthereumProvisionIdentifier requestsIdentifier;
 
     /** The block head, that we know about.  This is also represented in the `localEndpoint`
-     * status, except that their might be a lag (block head is updated by BCS through the LES
-     * interface, but the localEndpoint's status is updated as a 'safe point' in LES */
+     * status, except that there might be a lag (block head is updated by BCS through the LES
+     * interface, but the localEndpoint's status is updated as a 'safe point' in LES) */
     struct {
         BREthereumHash hash;
         uint64_t number;
@@ -382,12 +380,21 @@ lesInsertNodeAsAvailable (BREthereumLES les,
     if (ETHEREUM_BOOLEAN_IS_FALSE(inserted)) array_add (les->availableNodes, node);
 }
 
-static BREthereumNode
+/// Create a node for `endpoint` and add it to `les->nodes`.  If `endpoint` does not exist,
+/// then do nothing.
+static void
 lesEnsureNodeForEndpoint (BREthereumLES les,
                           OwnershipGiven BREthereumNodeEndpoint endpoint,
                           BREthereumNodeState state,
                           BREthereumNodePriority priority,
                           BREthereumBoolean *added) {
+
+    // Skip out if given an invalid endpoint
+    if (NULL == endpoint) {
+        if (NULL != added) *added = ETHEREUM_BOOLEAN_FALSE;
+        return;
+    }
+
     BREthereumHash hash = nodeEndpointGetHash(endpoint);
 
     pthread_mutex_lock (&les->lock);
@@ -423,12 +430,10 @@ lesEnsureNodeForEndpoint (BREthereumLES les,
     else nodeEndpointRelease(endpoint);  // we own it; release if not passed to nodeCreate()
 
     pthread_mutex_unlock (&les->lock);
-    return node;
 }
 
-///
 /// MARK: - DNS Seeds
-///
+
 #if !defined (LES_BOOTSTRAP_LCL_ONLY)
 typedef struct {
     BREthereumLES les;
@@ -505,9 +510,8 @@ lesSeedQuery (BREthereumLESSeedContext *context) {
 }
 #endif
 
-//
-// MARK: - Public functions
-//
+/// MARK: - Public functions
+
 extern BREthereumLES
 lesCreate (BREthereumNetwork network,
            BREthereumLESCallbackContext callbackContext,
@@ -648,7 +652,7 @@ lesCreate (BREthereumNetwork network,
                                           NULL);
 #endif // !defined(LES_BOOTSTRAP_LCL_ONLY)
 
-    if (NULL != configs) BRSetFreeAll(configs, (BRSetItemFree) nodeConfigRelease);
+    if (NULL != configs) BRSetFreeAll(configs, (void (*) (void*))  nodeConfigRelease);
 
     return les;
 }
@@ -714,9 +718,10 @@ lesRelease(BREthereumLES les) {
 
 extern void
 lesClean (BREthereumLES les) {
-    pthread_mutex_lock (&les->lock);
-    les->theTimeToCleanIsNow = 1;
-    pthread_mutex_unlock (&les->lock);
+    if (0 == pthread_mutex_trylock (&les->lock)) {
+        les->theTimeToCleanIsNow = 1;
+        pthread_mutex_unlock (&les->lock);
+    }
 }
 
 extern void
@@ -804,9 +809,8 @@ lesGetNodeHostname (BREthereumLES les,
                     BREthereumNodeReference node) {
     return nodeEndpointGetHostname (nodeGetRemoteEndpoint ((BREthereumNode) node));
 }
-///
+
 /// MARK: - LES Node Callbacks
-///
 
 /**
  * Handle a Node's Status message by invoking les->callbackStatus with the Node's head{Hash,Num}
@@ -901,11 +905,16 @@ lesHandleProvision (BREthereumLES les,
                     //
                     // We've taken ownership of the provision, we retain the provision as it will
                     // be reassigned to another node.
+                    //
+                    // Note that the provision might be filled with some data
+                    provisionReleaseResults (&request->provision);
 
+                    // Provide an explanation.
                     char explanation[256];
                     sprintf (explanation, "Provision Error: %s, Type: %s",
                              provisionErrorGetReasonName(result.u.error.reason),
                              provisionGetTypeName(result.type));
+
                     lesDeactivateNode (les, NODE_ROUTE_TCP, node, explanation);
                     return;
                 }
@@ -950,9 +959,7 @@ lesHandleNeighbor (BREthereumLES les,
     nodeSetDiscovered(node, ETHEREUM_BOOLEAN_TRUE);
 }
 
-///
 /// MARK: - LES (Main) Thread
-///
 
 static void
 lesLogNodeActivate (BREthereumLES les,
@@ -1024,21 +1031,24 @@ lesDeactivateNodes (BREthereumLES les,
 static void
 lesHandleSelectError (BREthereumLES les,
                       int error) {
+    eth_log (LES_LOG_TOPIC, "Top-Level Select Error: %s", strerror(error));
+
     switch (error) {
         case EAGAIN:
         case EBADF:
         case EINTR:
         case EINVAL:
-            eth_log (LES_LOG_TOPIC, "Select Error: %s", strerror(error));
+            // expected errors - do something ??
+            break;
+
+        default:
+            // unexpected - do what?
             break;
     }
 }
 
 static void
-lesThreadBootstrapSeeds (BREthereumLES les) {
-    size_t bootstrappedEndpointsCount = 0;
-
-#if !defined (LES_BOOTSTRAP_LCL_ONLY)
+lesSeedQueryAll (BREthereumLES les) {
     // Create nodes from our network seeds.
     const char **seeds = networkGetSeeds (les->network);
     size_t seedsCount  = networkGetSeedsCount(les->network);
@@ -1051,6 +1061,26 @@ lesThreadBootstrapSeeds (BREthereumLES les) {
 
         lesSeedQuery(&context);
     }
+}
+
+static void
+lesSeedQueryAllThreaded (BREthereumLES les) {
+    pthread_t thread;
+
+    pthread_attr_t attr;
+    pthread_attr_init (&attr);
+    pthread_attr_setdetachstate (&attr, PTHREAD_CREATE_DETACHED);
+    pthread_attr_setstacksize (&attr, 1024 * 1024);
+    pthread_create (&thread, &attr, (ThreadRoutine) lesSeedQueryAll, les);
+    pthread_attr_destroy(&attr);
+}
+
+static void
+lesThreadBootstrapSeeds (BREthereumLES les) {
+    size_t bootstrappedEndpointsCount = 0;
+
+#if !defined (LES_BOOTSTRAP_LCL_ONLY)
+    lesSeedQueryAllThreaded(les);
 #endif // !defined (LES_BOOTSTRAP_LCL_ONLY)
 
     // Create nodes from compiled-in nodes; this is done in case the 'seed' query fails - which
@@ -1063,8 +1093,9 @@ lesThreadBootstrapSeeds (BREthereumLES les) {
 #if defined (LES_BOOTSTRAP_LCL_ONLY)
         { NODE_TYPE_PARITY,  NODE_PRIORITY_LCL, networkGetEnodesLocal (les->network, 1) },
         { NODE_TYPE_GETH,    NODE_PRIORITY_LCL, networkGetEnodesLocal (les->network, 0) },
-#else
+#elif defined (LES_BOOTSTRAP_BRD_ONLY)
         { NODE_TYPE_UNKNOWN, NODE_PRIORITY_BRD, networkGetEnodesBRD (les->network) },
+#else
         { NODE_TYPE_UNKNOWN, NODE_PRIORITY_DIS, networkGetEnodesCommunity (les->network) },
 #endif
         { NODE_TYPE_UNKNOWN, NODE_PRIORITY_DIS, NULL }
@@ -1121,14 +1152,14 @@ lesThread (BREthereumLES les) {
     fd_set readDescriptors, writeDesciptors;
     int maximumDescriptor = -1;
 
-    pthread_mutex_lock (&les->lock);
-
     // See CORE-260: the process of finding seeds, using DNS TXT fields, can take a while.
     // So, we moved it out of lesCreate() here, in lesThread().
     if (les->isPendingDNSSeeds) {
         les->isPendingDNSSeeds = 0;
-        lesThreadBootstrapSeeds (les);
+        lesThreadBootstrapSeeds(les);
      }
+
+    pthread_mutex_lock (&les->lock);
 
     BRArrayOf(BREthereumNode) nodesToRemove;
     array_new(nodesToRemove, 10);
@@ -1199,6 +1230,12 @@ lesThread (BREthereumLES les) {
                                             ? ACTIVE_NODE (nodeRef)
                                             : (BREthereumNode) les->requests[index].nodeReference);
 #undef ACTIVE_NODE
+
+                // If `nodeToUse` is NULL, then there may be no active nodes.  We'll leave the
+                // request unchanged and thus will come back to handling the request once we have
+                // some active nodes.
+                //
+                // TODO: Consider a timeout on a request beging handled?
 
                 if (NULL != nodeToUse && nodeHasState (nodeToUse, NODE_ROUTE_TCP, NODE_CONNECTED)) {
 
@@ -1404,6 +1441,10 @@ lesThread (BREthereumLES les) {
                 array_count(les->availableNodes) > 0) {
                 BREthereumNode node = les->availableNodes[0];
 
+                // This blocks on Unix connect() and then loops on select() for EINPROGRESS.
+                // Really, really we need NODE_CONNECT_OPEN_SOCKET_IN_PROGRESS with a small
+                // timeout on connect().
+                
                 nodeConnect (node, NODE_ROUTE_TCP, now);
 
                 switch (nodeGetState(node, NODE_ROUTE_TCP).type) {
@@ -1414,6 +1455,20 @@ lesThread (BREthereumLES les) {
                         // On error; no longer available
                         lesLogNodeActivate(les, node, NODE_ROUTE_TCP, "", "<=|=>");
                         array_rm (les->availableNodes, 0);
+
+                        // TODO: Restore to 'AVAILABLE'
+                        //
+                        // If this node has a priority of NODE_PRIORITY_LCL or NODE_PRIORITY_BRD
+                        // then consider returning it to available. See JIRA:CORE-257 - finding
+                        // viable LES/PIP nodes is so rare that we simply cannot afford to
+                        // eliminate options that we trust.
+                        //
+                        // Note: We attempted doing just the above in `nodeDisconnect()`.  With
+                        // that we returned to this code and immediately retried to connect to
+                        // the same node - failing again and again, forever.  Thus if we consider
+                        // returning to available, at the very least we must put the node at the
+                        // end of `les->availableNodes`.
+
                         break;
 
                     case NODE_CONNECTING:
@@ -1474,7 +1529,12 @@ lesThread (BREthereumLES les) {
         // that are in an error state, back to NODE_AVAILABLE - when LES connects again we'll then
         // attempt to connect to that node.  That connection might be futile; we'll try anyways.
         BREthereumNodeState oldState = nodeGetState(node, NODE_ROUTE_TCP);
-        BREthereumNodeState newState = nodeGetPreferredState(oldState);
+
+        // Always restore BRD and LCL nodes to 'NODE_AVAILABLE'
+        BREthereumNodeState newState = (NODE_PRIORITY_BRD == nodeGetPriority(node) || NODE_PRIORITY_LCL == nodeGetPriority(node)
+                                        ? ((BREthereumNodeState) { NODE_AVAILABLE })
+                                        : nodeGetPreferredState(oldState));
+
         nodeDisconnect (node, NODE_ROUTE_TCP, newState, ETHEREUM_BOOLEAN_FALSE);
         if (NODE_AVAILABLE != oldState.type && NODE_AVAILABLE == newState.type)
             lesInsertNodeAsAvailable (les, node);
@@ -1498,9 +1558,7 @@ lesThread (BREthereumLES les) {
     pthread_exit (0);
 }
 
-///
 /// MARK: - (Public) Provide (Headers, ...)
-///
 
 static void
 lesAddRequestSpecifically (BREthereumLES les,
@@ -1537,7 +1595,11 @@ lesAddRequest (BREthereumLES les,
     if (NODE_REFERENCE_ALL != node)
         lesAddRequestSpecifically (les, node, context, callback, provision);
     else {
-        for (BREthereumNodeReference ns = NODE_REFERENCE_0; ns <= NODE_REFERENCE_4; ns++)
+        // We'll make NODE_REFERENCE_MAX - NODE_REFERENCE_MIN specific requests.  Since we have at
+        // most LES_ACTIVE_NODE_COUNT active nodes, we might not get (MAX - MIN) actual requests
+        // but only as many as the number of active nodes.  See ACTIVE_NODE above (which might
+        // discard node reference over the active nodes).
+        for (BREthereumNodeReference ns = NODE_REFERENCE_MIN; ns <= NODE_REFERENCE_MAX; ns++)
             lesAddRequestSpecifically (les, ns, context, callback,
                                        provisionCopy (&provision, ETHEREUM_BOOLEAN_FALSE));
         // Handle `OwnershipGiven`

@@ -1,35 +1,19 @@
 //  Created by Ed Gamble on 1/23/2018
-//  Copyright (c) 2018 breadwallet LLC.
+//  Copyright (c) 2018 Breadwinner AG.  All right reserved.
 //
-//  Permission is hereby granted, free of charge, to any person obtaining a copy
-//  of this software and associated documentation files (the "Software"), to deal
-//  in the Software without restriction, including without limitation the rights
-//  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-//  copies of the Software, and to permit persons to whom the Software is
-//  furnished to do so, subject to the following conditions:
-//
-//  The above copyright notice and this permission notice shall be included in
-//  all copies or substantial portions of the Software.
-//
-//  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-//  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-//  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-//  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-//  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-//  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-//  THE SOFTWARE.
+//  See the LICENSE file at the project root for license information.
+//  See the CONTRIBUTORS file at the project root for a list of contributors.
 
-#include "BRCoreJni.h"
-#include <BRKey.h>
-#include <BRKeyECIES.h>
-#include <BRAddress.h>
 #include <stdlib.h>
-#include <malloc.h>
 #include <assert.h>
-#include <BRBase58.h>
-#include <BRBIP39Mnemonic.h>
-#include <BRBIP38Key.h>
-#include <BRBIP32Sequence.h>
+#include "BRCoreJni.h"
+#include "support/BRKey.h"
+#include "support/BRKeyECIES.h"
+#include "support/BRAddress.h"
+#include "support/BRBase58.h"
+#include "support/BRBIP39Mnemonic.h"
+#include "support/BRBIP32Sequence.h"
+#include "bitcoin/BRBIP38Key.h"
 #include "com_breadwallet_core_BRCoreKey.h"
 
 /*
@@ -87,14 +71,15 @@ Java_com_breadwallet_core_BRCoreKey_getCompressed
  */
 JNIEXPORT jstring JNICALL Java_com_breadwallet_core_BRCoreKey_getPrivKey
         (JNIEnv *env, jobject thisObject) {
-    BRKey *key = (BRKey *) getJNIReference(env, thisObject);
-
-    size_t privKeyLen = (size_t) BRKeyPrivKey(key, NULL, 0);
-    char privKey[privKeyLen + 1];
-    BRKeyPrivKey(key, privKey, privKeyLen);
-    privKey[privKeyLen] = '\0';
-
-    return (*env)->NewStringUTF (env, privKey);
+//    BRKey *key = (BRKey *) getJNIReference(env, thisObject);
+//
+//    size_t privKeyLen = (size_t) BRKeyPrivKey(key, NULL, 0);
+//    char privKey[privKeyLen + 1];
+//    BRKeyPrivKey(key, privKey, privKeyLen);
+//    privKey[privKeyLen] = '\0';
+//
+//    return (*env)->NewStringUTF (env, privKey);
+    return NULL;
 }
 
 // Unused
@@ -155,20 +140,20 @@ Java_com_breadwallet_core_BRCoreKey_getSeedFromPhrase
 JNIEXPORT jbyteArray JNICALL Java_com_breadwallet_core_BRCoreKey_getAuthPrivKeyForAPI
         (JNIEnv *env, jclass thisClass, jbyteArray seed) {
     //__android_log_print(ANDROID_LOG_DEBUG, "Message from C: ", "getAuthPrivKeyForAPI");
-    jbyte *bytesSeed = (*env)->GetByteArrayElements(env, seed, 0);
-    size_t seedLen = (size_t) (*env)->GetArrayLength(env, seed);
-    //__android_log_print(ANDROID_LOG_DEBUG, "Message from C: ", "seedLen: %d", (int) seedLen);
-
-    BRKey key;
-    BRBIP32APIAuthKey(&key, bytesSeed, seedLen);
-    char rawKey[BRKeyPrivKey(&key, NULL, 0)];
-    BRKeyPrivKey(&key, rawKey, sizeof(rawKey));
-
-    //    __android_log_print(ANDROID_LOG_DEBUG, "Message from C: ", "rawKey: %s", rawKey);
-    jbyteArray result = (*env)->NewByteArray(env, (jsize) sizeof(rawKey));
-    (*env)->SetByteArrayRegion(env, result, 0, (jsize) sizeof(rawKey), (jbyte *) rawKey);
-    return result;
-
+//    jbyte *bytesSeed = (*env)->GetByteArrayElements(env, seed, 0);
+//    size_t seedLen = (size_t) (*env)->GetArrayLength(env, seed);
+//    //__android_log_print(ANDROID_LOG_DEBUG, "Message from C: ", "seedLen: %d", (int) seedLen);
+//
+//    BRKey key;
+//    BRBIP32APIAuthKey(&key, bytesSeed, seedLen);
+//    char rawKey[BRKeyPrivKey(&key, NULL, 0)];
+//    BRKeyPrivKey(&key, rawKey, sizeof(rawKey));
+//
+//    //    __android_log_print(ANDROID_LOG_DEBUG, "Message from C: ", "rawKey: %s", rawKey);
+//    jbyteArray result = (*env)->NewByteArray(env, (jsize) sizeof(rawKey));
+//    (*env)->SetByteArrayRegion(env, result, 0, (jsize) sizeof(rawKey), (jbyte *) rawKey);
+//    return result;
+    return NULL;
 }
 
 /*
@@ -179,19 +164,20 @@ JNIEXPORT jbyteArray JNICALL Java_com_breadwallet_core_BRCoreKey_getAuthPrivKeyF
 JNIEXPORT jstring JNICALL Java_com_breadwallet_core_BRCoreKey_getAuthPublicKeyForAPI
         (JNIEnv *env, jclass thisClass, jbyteArray privKey) {
     //__android_log_print(ANDROID_LOG_DEBUG, "Message from C: ", "getAuthPublicKeyForAPI");
-    jbyte *bytePrivKey = (*env)->GetByteArrayElements(env, privKey, 0);
-    BRKey key;
-    BRKeySetPrivKey(&key, (const char *) bytePrivKey);
-
-    size_t len = BRKeyPubKey(&key, NULL, 0);
-    uint8_t pubKey[len];
-    BRKeyPubKey(&key, &pubKey, len);
-    size_t strLen = BRBase58Encode(NULL, 0, pubKey, len);
-    char base58string[strLen + 1];
-    BRBase58Encode(base58string, strLen, pubKey, len);
-    base58string[strLen] = '\0';
-
-    return (*env)->NewStringUTF(env, base58string);
+//    jbyte *bytePrivKey = (*env)->GetByteArrayElements(env, privKey, 0);
+//    BRKey key;
+//    BRKeySetPrivKey(&key, (const char *) bytePrivKey);
+//
+//    size_t len = BRKeyPubKey(&key, NULL, 0);
+//    uint8_t pubKey[len];
+//    BRKeyPubKey(&key, &pubKey, len);
+//    size_t strLen = BRBase58Encode(NULL, 0, pubKey, len);
+//    char base58string[strLen + 1];
+//    BRBase58Encode(base58string, strLen, pubKey, len);
+//    base58string[strLen] = '\0';
+//
+//    return (*env)->NewStringUTF(env, base58string);
+    return NULL;
 }
 
 /*
@@ -203,19 +189,20 @@ JNIEXPORT jstring JNICALL Java_com_breadwallet_core_BRCoreKey_decryptBip38Key
         (JNIEnv *env, jclass thisClass, jstring privKey, jstring pass) {
     //__android_log_print(ANDROID_LOG_DEBUG, "Message from C: ", "decryptBip38Key");
 
-    BRKey key;
-    const char *rawPrivKey = (*env)->GetStringUTFChars(env, privKey, NULL);
-    const char *rawPass = (*env)->GetStringUTFChars(env, pass, NULL);
-    int result = BRKeySetBIP38Key(&key, rawPrivKey, rawPass);
-
-    if (result) {
-        size_t pkLen = BRKeyPrivKey(&key, NULL, 0);
-        char pk[pkLen + 1];
-
-        BRKeyPrivKey(&key, pk, sizeof(pk));
-        pk[pkLen] = '\0';
-        return (*env)->NewStringUTF(env, pk);
-    } else return (*env)->NewStringUTF(env, "");
+//    BRKey key;
+//    const char *rawPrivKey = (*env)->GetStringUTFChars(env, privKey, NULL);
+//    const char *rawPass = (*env)->GetStringUTFChars(env, pass, NULL);
+//    int result = BRKeySetBIP38Key(&key, rawPrivKey, rawPass);
+//
+//    if (result) {
+//        size_t pkLen = BRKeyPrivKey(&key, NULL, 0);
+//        char pk[pkLen + 1];
+//
+//        BRKeyPrivKey(&key, pk, sizeof(pk));
+//        pk[pkLen] = '\0';
+//        return (*env)->NewStringUTF(env, pk);
+//    } else return (*env)->NewStringUTF(env, "");
+    return NULL;
 }
 
 /*
@@ -259,16 +246,17 @@ JNIEXPORT jlong JNICALL Java_com_breadwallet_core_BRCoreKey_createCoreKeyForBIP3
  */
 JNIEXPORT jboolean JNICALL Java_com_breadwallet_core_BRCoreKey_setPrivKey
         (JNIEnv *env, jobject thisObject, jstring privKeyString) {
-    BRKey *key = (BRKey *) getJNIReference(env, thisObject);
-    const char *privKey = (*env)->GetStringUTFChars (env, privKeyString, 0);
-
-    jboolean result = (jboolean) (1 == BRKeySetPrivKey(key, privKey)
-                                  ? JNI_TRUE
-                                  : JNI_FALSE);
-
-    (*env)->ReleaseStringUTFChars(env, privKeyString, privKey);
-
-    return result;
+//    BRKey *key = (BRKey *) getJNIReference(env, thisObject);
+//    const char *privKey = (*env)->GetStringUTFChars (env, privKeyString, 0);
+//
+//    jboolean result = (jboolean) (1 == BRKeySetPrivKey(key, privKey)
+//                                  ? JNI_TRUE
+//                                  : JNI_FALSE);
+//
+//    (*env)->ReleaseStringUTFChars(env, privKeyString, privKey);
+//
+//    return result;
+    return JNI_FALSE;
 }
 
 /*
@@ -558,13 +546,14 @@ JNIEXPORT jlong JNICALL Java_com_breadwallet_core_BRCoreKey_createPairingKey
 JNIEXPORT jstring JNICALL
 Java_com_breadwallet_core_BRCoreKey_address
         (JNIEnv *env, jobject thisObject) {
-    BRKey *key = (BRKey *) getJNIReference(env, thisObject);
-
-    BRAddress address = BR_ADDRESS_NONE;
-    BRKeyAddress (key, address.s, sizeof(address));
-    assert(address.s[0] != '\0');
-
-    return (*env)->NewStringUTF(env, address.s);
+//    BRKey *key = (BRKey *) getJNIReference(env, thisObject);
+//
+//    BRAddress address = BR_ADDRESS_NONE;
+//    BRKeyAddress (key, address.s, sizeof(address));
+//    assert(address.s[0] != '\0');
+//
+//    return (*env)->NewStringUTF(env, address.s);
+    return NULL;
 }
 
 /*
@@ -575,13 +564,14 @@ Java_com_breadwallet_core_BRCoreKey_address
 JNIEXPORT jstring JNICALL
 Java_com_breadwallet_core_BRCoreKey_addressLegacy
         (JNIEnv *env, jobject thisObject) {
-    BRKey *key = (BRKey *) getJNIReference(env, thisObject);
-
-    BRAddress address = BR_ADDRESS_NONE;
-    BRKeyLegacyAddr (key, address.s, sizeof(address));
-    assert(address.s[0] != '\0');
-
-    return (*env)->NewStringUTF(env, address.s);
+//    BRKey *key = (BRKey *) getJNIReference(env, thisObject);
+//
+//    BRAddress address = BR_ADDRESS_NONE;
+//    BRKeyLegacyAddr (key, address.s, sizeof(address));
+//    assert(address.s[0] != '\0');
+//
+//    return (*env)->NewStringUTF(env, address.s);
+    return NULL;
 }
 
 /*
@@ -592,11 +582,12 @@ Java_com_breadwallet_core_BRCoreKey_addressLegacy
 JNIEXPORT jboolean JNICALL
 Java_com_breadwallet_core_BRCoreKey_isValidBitcoinPrivateKey
         (JNIEnv *env, jclass thisClass, jstring stringObject) {
-    const char *privKey = (*env)->GetStringUTFChars(env, stringObject, 0);
-    int result = BRPrivKeyIsValid(privKey);
-
-    (*env)->ReleaseStringUTFChars(env, stringObject, privKey);
-    return (jboolean) (1 == result ? JNI_TRUE : JNI_FALSE);
+//    const char *privKey = (*env)->GetStringUTFChars(env, stringObject, 0);
+//    int result = BRPrivKeyIsValid(privKey);
+//
+//    (*env)->ReleaseStringUTFChars(env, stringObject, privKey);
+//    return (jboolean) (1 == result ? JNI_TRUE : JNI_FALSE);
+    return JNI_FALSE;
 }
 
 /*

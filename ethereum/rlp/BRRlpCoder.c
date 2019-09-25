@@ -1,38 +1,20 @@
 //
 //  rlp
-//  breadwallet-core Ethereum
+//  Core Ethereum
 //
 //  Created by Ed Gamble on 2/25/18.
-//  Copyright (c) 2018 breadwallet LLC
+//  Copyright © 2018-2019 Breadwinner AG.  All rights reserved.
 //
-//  Permission is hereby granted, free of charge, to any person obtaining a copy
-//  of this software and associated documentation files (the "Software"), to deal
-//  in the Software without restriction, including without limitation the rights
-//  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-//  copies of the Software, and to permit persons to whom the Software is
-//  furnished to do so, subject to the following conditions:
-//
-//  The above copyright notice and this permission notice shall be included in
-//  all copies or substantial portions of the Software.
-//
-//  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-//  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-//  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-//  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-//  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-//  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-//  THE SOFTWARE.
+//  See the LICENSE file at the project root for license information.
+//  See the CONTRIBUTORS file at the project root for a list of contributors.
 
 #include <stdlib.h>
 #include <stdarg.h>
 #include <memory.h>
 #include <assert.h>
 #include <pthread.h>
+#include "ethereum/util/BRUtil.h"
 #include "BRRlpCoder.h"
-#include "../util/BRUtil.h"
-
-static void
-rlpCoderReclaimInternal (BRRlpCoder coder) ;
 
 static int
 rlpDecodeStringEmptyCheck (BRRlpCoder coder, BRRlpItem item);
@@ -140,21 +122,8 @@ rlpCoderCreate (void) {
     return coder;
 }
 
-extern void
-rlpCoderRelease (BRRlpCoder coder) {
-    pthread_mutex_lock(&coder->lock);
-
-    // Every single Item must be returned!
-    assert (NULL == coder->busy);
-    rlpCoderReclaimInternal (coder);
-
-    pthread_mutex_unlock(&coder->lock);
-    pthread_mutex_destroy(&coder->lock);
-    free (coder);
-}
-
 static void
-rlpCoderReclaimInternal (BRRlpCoder coder) {
+_rlpCoderReclaimInternal (BRRlpCoder coder) {
     BRRlpItem item = coder->free;
     while (item != NULL) {
         BRRlpItem next = item->next;   // save 'next' before release...
@@ -168,22 +137,26 @@ rlpCoderReclaimInternal (BRRlpCoder coder) {
 extern void
 rlpCoderReclaim (BRRlpCoder coder) {
     pthread_mutex_lock(&coder->lock);
-    rlpCoderReclaimInternal (coder);
+    _rlpCoderReclaimInternal (coder);
     pthread_mutex_unlock(&coder->lock);
 }
 
-extern int
-rlpCoderBusyCount (BRRlpCoder coder) {
-    int count = 0;
-    for (BRRlpItem found = coder->busy; NULL != found; found = found->next)
-        count++;
-    return count;
+extern void
+rlpCoderRelease (BRRlpCoder coder) {
+    pthread_mutex_lock(&coder->lock);
+
+    // Every single Item must be returned!
+    assert (NULL == coder->busy);
+    _rlpCoderReclaimInternal (coder);
+
+    pthread_mutex_unlock(&coder->lock);
+    pthread_mutex_destroy(&coder->lock);
+    free (coder);
 }
 
 static BRRlpItem
-rlpCoderAcquireItem (BRRlpCoder coder) {
+_rlpCoderAcquireItemInternal (BRRlpCoder coder) {
     BRRlpItem item = NULL;
-    pthread_mutex_lock(&coder->lock);
 
     // Get `item` from `coder->free` or `calloc`
     if (NULL != coder->free) {
@@ -203,13 +176,19 @@ rlpCoderAcquireItem (BRRlpCoder coder) {
     // Update `coder` to show `item` as busy.
     coder->busy = item;
 
+    return item;
+}
+
+static BRRlpItem
+rlpCoderAcquireItem (BRRlpCoder coder) {
+    pthread_mutex_lock(&coder->lock);
+    BRRlpItem item = _rlpCoderAcquireItemInternal (coder);
     pthread_mutex_unlock(&coder->lock);
     return item;
 }
 
 static void
-rlpCoderReturnItem (BRRlpCoder coder, BRRlpItem prev, BRRlpItem item, BRRlpItem next) {
-    pthread_mutex_lock(&coder->lock);
+_rlpCoderReturnItemInternal (BRRlpCoder coder, BRRlpItem prev, BRRlpItem item, BRRlpItem next) {
     assert (NULL == item->next       && NULL == item->prev &&
             0    == item->bytesCount && 0    == item->itemsCount);
 
@@ -230,17 +209,26 @@ rlpCoderReturnItem (BRRlpCoder coder, BRRlpItem prev, BRRlpItem item, BRRlpItem 
 
     // Update `coder` to show `item` as free.
     coder->free = item;
-
-    pthread_mutex_unlock(&coder->lock);
 }
 
 static void
-itemRelease (BRRlpCoder coder, BRRlpItem item) {
+_rlpCoderReleaseItemInternal (BRRlpCoder coder, BRRlpItem item) {
+    for (size_t index = 0; index < item->itemsCount; index++)
+        _rlpCoderReleaseItemInternal (coder, item->items[index]);
+
+    // Surely get these before itemReleaseMemory() blows them away.
     BRRlpItem prev = item->prev;
     BRRlpItem next = item->next;
 
     itemReleaseMemory(item);
-    rlpCoderReturnItem(coder, prev, item, next);
+    _rlpCoderReturnItemInternal (coder, prev, item, next);
+}
+
+static void
+rlpCoderReleaseItem (BRRlpCoder coder, BRRlpItem item) {
+    pthread_mutex_lock(&coder->lock);
+    _rlpCoderReleaseItemInternal (coder, item);
+    pthread_mutex_unlock(&coder->lock);
 }
 
 static int
@@ -291,84 +279,6 @@ extern int
 rlpCoderHasFailed (BRRlpCoder coder) {
     return coder->failed;
 }
-
-#if 0
-static BRRlpItem
-itemCreate (BRRlpCoder coder,
-            uint8_t *bytes, size_t bytesCount, int takeBytes) {
-    BRRlpItem item = calloc (1, sizeof (struct BRRlpItemRecord));
-
-    item->type = CODER_ITEM;
-    item->bytesCount = bytesCount;
-    if (takeBytes)
-        item->bytes = bytes;
-    else {
-        item->bytes = (item->bytesCount > ITEM_DEFAULT_BYTES_COUNT
-                       ? malloc (item->bytesCount)
-                       : item->bytesArray);
-        memcpy (item->bytes, bytes, item->bytesCount);
-    }
-    item->itemsCount = 0;
-    item->items = NULL;
-
-    return item;
-}
-
-static BRRlpItem
-itemCreateList (BRRlpCoder coder,
-                uint8_t *bytes, size_t bytesCount, int takeBytes,
-                BRRlpItem *items, size_t itemsCount) {
-    BRRlpItem item = itemCreate(coder, bytes, bytesCount, takeBytes);
-    item->type = CODER_LIST;
-    item->itemsCount = itemsCount;
-    item->items = (item->itemsCount > ITEM_DEFAULT_ITEMS_COUNT
-                   ? calloc (item->itemsCount, sizeof (BRRlpItem))
-                   : item->itemsArray);
-    for (int i = 0; i < itemsCount; i++)
-        item->items[i] = items[i];
-    
-    return item;
-}
-#endif
-
-/**
- * Return a new BRRlpContext by appending the two provided contexts.  Both provided contexts
- * must be for CODER_ITEM (othewise an 'assert' is raised); the appending is performed by simply
- * concatenating the two context's byte arrays.
- *
- * If release is TRUE, then both the provided contexts are released; thereby freeing their memory.
- *
- */
-#if 0
-static BRRlpItem
-itemCreateAppend (BRRlpCoder coder, BRRlpItem context1, BRRlpItem context2, int release) {
-    assert (CODER_ITEM == context1->type && CODER_ITEM == context2->type);
-
-    BRRlpItem item = calloc (1, sizeof (struct BRRlpItemRecord));
-
-    item->type = CODER_ITEM;
-    
-    item->bytesCount = context1->bytesCount + context2->bytesCount;
-    item->bytes = (item->bytesCount > ITEM_DEFAULT_BYTES_COUNT
-                   ? malloc (item->bytesCount)
-                   : item->bytesArray);
-
-    memcpy (&item->bytes[0], context1->bytes, context1->bytesCount);
-    memcpy (&item->bytes[context1->bytesCount], context2->bytes, context2->bytesCount);
-
-    item->itemsCount = 0;
-    item->items = NULL;
-    
-    if (release) {
-        //        assert (context2.bytes != context1.bytes || context2.bytes == NULL || context1.bytes == NULL);
-        //        assert (context2.items != context1.items || context2.items == NULL || context1.items == NULL);
-        itemRelease(coder, context1);
-        itemRelease(coder, context2);
-    }
-    
-    return item;
-}
-#endif
 
 // The largest number supported for encoding is a UInt256 - which is representable as 32 bytes.
 #define CODER_NUMBER_BYTES_LIMIT    (256/8)
@@ -1086,9 +996,7 @@ rlpShowItemInternal (BRRlpCoder coder, BRRlpItem context, const char *topic, int
 extern void
 rlpReleaseItem (BRRlpCoder coder, BRRlpItem item) {
     assert (itemIsValid(coder, item));
-    for (size_t index = 0; index < item->itemsCount; index++)
-        rlpReleaseItem(coder, item->items[index]);
-    itemRelease(coder, item);
+    rlpCoderReleaseItem (coder, item);
 }
 
 extern void

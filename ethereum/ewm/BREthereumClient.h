@@ -3,25 +3,10 @@
 //  BRCore
 //
 //  Created by Ed Gamble on 11/20/18.
-//  Copyright (c) 2018 breadwallet LLC
+//  Copyright © 2018-2019 Breadwinner AG.  All rights reserved.
 //
-//  Permission is hereby granted, free of charge, to any person obtaining a copy
-//  of this software and associated documentation files (the "Software"), to deal
-//  in the Software without restriction, including without limitation the rights
-//  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-//  copies of the Software, and to permit persons to whom the Software is
-//  furnished to do so, subject to the following conditions:
-//
-//  The above copyright notice and this permission notice shall be included in
-//  all copies or substantial portions of the Software.
-//
-//  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-//  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-//  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-//  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-//  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-//  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-//  THE SOFTWARE.
+//  See the LICENSE file at the project root for license information.
+//  See the CONTRIBUTORS file at the project root for a list of contributors.
 
 #ifndef BR_Ethereum_Client_H
 #define BR_Ethereum_Client_H
@@ -31,6 +16,10 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+    // Cookies are used as markers to match up an asynchronous operation
+    // request with its corresponding event.
+    typedef void *BREthereumCookie;
 
     //
     // BREthereumClient
@@ -43,10 +32,8 @@ extern "C" {
     //
     typedef void *BREthereumClientContext;
 
-
-    ///
     /// MARK: - Balance
-    ///
+
     typedef void
     (*BREthereumClientHandlerGetBalance) (BREthereumClientContext context,
                                           BREthereumEWM ewm,
@@ -60,13 +47,8 @@ extern "C" {
                               const char *balance,
                               int rid);
 
-    extern void
-    ewmUpdateWalletBalance (BREthereumEWM ewm,
-                            BREthereumWallet wid);
-
-    ///
     /// MARK: - Gas Price
-    ///
+
     typedef void
     (*BREthereumClientHandlerGetGasPrice) (BREthereumClientContext context,
                                            BREthereumEWM ewm,
@@ -76,43 +58,54 @@ extern "C" {
     extern BREthereumStatus
     ewmAnnounceGasPrice(BREthereumEWM ewm,
                         BREthereumWallet wid,
-                        const char *gasEstimate,
+                        const char *gasPrice,
                         int rid);
 
     extern void
     ewmUpdateGasPrice (BREthereumEWM ewm,
                        BREthereumWallet wid);
 
-    ///
     /// MARK: - Gas Estimate
-    ///
+
     typedef void
     (*BREthereumClientHandlerEstimateGas) (BREthereumClientContext context,
                                            BREthereumEWM ewm,
                                            BREthereumWallet wid,
-                                           BREthereumTransfer tid,
+                                           BREthereumCookie cookie,
                                            const char *from,
                                            const char *to,
                                            const char *amount,
+                                           const char *gasPrice,
                                            const char *data,
                                            int rid);
 
     extern BREthereumStatus
-    ewmAnnounceGasEstimate (BREthereumEWM ewm,
-                            BREthereumWallet wid,
-                            BREthereumTransfer tid,
-                            const char *gasEstimate,
-                            int rid);
+    ewmAnnounceGasEstimateSuccess (BREthereumEWM ewm,
+                                   BREthereumWallet wallet,
+                                   BREthereumCookie cookie,
+                                   const char *gasEstimate,
+                                   const char *gasPrice,
+                                   int rid);
 
+    extern BREthereumStatus
+    ewmAnnounceGasEstimateFailure (BREthereumEWM ewm,
+                                   BREthereumWallet wallet,
+                                   BREthereumCookie cookie,
+                                   BREthereumStatus status,
+                                   int rid);
 
     extern void
-    ewmUpdateGasEstimate (BREthereumEWM ewm,
-                          BREthereumWallet wid,
-                          BREthereumTransfer tid);
+    ewmGetGasEstimate (BREthereumEWM ewm,
+                       BREthereumWallet wallet,
+                       BREthereumTransfer transfer,
+                       BREthereumCookie cookie);
 
-    ///
-    /// MARK: Submit Transfer
-    ///
+    /// MARK: - Submit Transfer
+
+    /**
+     * Client handler for submitting a transaction.  Makes a JSON_RPC call with `transaction` and
+     * then invokes `ewmAnnounceSubmitTransfer()` with the result.
+     */
     typedef void
     (*BREthereumClientHandlerSubmitTransaction) (BREthereumClientContext context,
                                                  BREthereumEWM ewm,
@@ -122,7 +115,9 @@ extern "C" {
                                                  int rid);
 
     /**
-     * Announce the result of a submitted transaction
+     * Announce the result of a submitted transaction.  This is only called from the client
+     * in the implementation of BREthereumClientHandlerSubmitTransaction (after the JSON_RPC
+     * call is made to actually submit the transfer)
      *
      * @param ewm the ewm
      * @param wid the wallet
@@ -143,9 +138,8 @@ extern "C" {
                                const char *errorMessage,
                                int rid);
 
-    ///
-    /// MARK: Get Transactions
-    ///
+    /// MARK: - Get Transactions
+
     typedef void
     (*BREthereumClientHandlerGetTransactions) (BREthereumClientContext context,
                                                BREthereumEWM ewm,
@@ -182,17 +176,7 @@ extern "C" {
                                     int id,
                                     BREthereumBoolean success);
 
-    /**
-     * Update the transactions for the ewm's account.  A JSON_RPC EWM will call out to
-     * BREthereumClientHandlerGetTransactions which is expected to query all transactions associated with the
-     * accounts address and then the call out is to call back the 'announce transaction' callback.
-     */
-    extern void
-    ewmUpdateTransactions (BREthereumEWM ewm);
-
-    ///
-    /// MARK: Get Logs
-    ///
+    /// MARK: - Get Logs
 
     typedef void
     (*BREthereumClientHandlerGetLogs) (BREthereumClientContext context,
@@ -224,14 +208,8 @@ extern "C" {
                             int id,
                             BREthereumBoolean success);
 
-    extern void
-    ewmUpdateLogs (BREthereumEWM ewm,
-                   BREthereumWallet wid,
-                   BREthereumContractEvent event);
+    /// MARK: - Get Tokens
 
-    ///
-    /// MARK: Get Tokens
-    ///
     typedef void
     (*BREthereumClientHandlerGetTokens) (BREthereumClientContext context,
                                          BREthereumEWM ewm,
@@ -239,26 +217,25 @@ extern "C" {
 
     extern void
     ewmAnnounceToken(BREthereumEWM ewm,
+                     int rid,
                      const char *address,
                      const char *symbol,
                      const char *name,
                      const char *description,
                      unsigned int decimals,
                      const char *strDefaultGasLimit,
-                     const char *strDefaultGasPrice,
-                     int rid);
+                     const char *strDefaultGasPrice);
 
     extern void
     ewmAnnounceTokenComplete (BREthereumEWM ewm,
-                              BREthereumBoolean success,
-                              int rid);
+                              int rid,
+                              BREthereumBoolean success);
     
     extern void
     ewmUpdateTokens (BREthereumEWM ewm);
 
-    ///
     /// MARK: - BlockNumber
-    ///
+
     typedef void
     (*BREthereumClientHandlerGetBlockNumber) (BREthereumClientContext context,
                                               BREthereumEWM ewm,
@@ -269,12 +246,8 @@ extern "C" {
                             const char *blockNumber,
                             int rid);
 
-    extern void
-    ewmUpdateBlockNumber (BREthereumEWM ewm);
-
-    ///
     /// MARK: - Nonce
-    ///
+
     typedef void
     (*BREthereumClientHandlerGetNonce) (BREthereumClientContext context,
                                         BREthereumEWM ewm,
@@ -287,12 +260,8 @@ extern "C" {
                       const char *strNonce,
                       int rid);
 
-    extern void
-    ewmUpdateNonce (BREthereumEWM ewm);
-
-    ///
     /// MARK: - Blocks
-    ///
+
     typedef void
     (*BREthereumClientHandlerGetBlocks) (BREthereumClientContext context,
                                          BREthereumEWM ewm,
@@ -309,26 +278,43 @@ extern "C" {
                        int blockNumbersCount,
                        uint64_t *blockNumbers);
 
-     ///
     /// MARK: - Events
-    ///
+
     typedef enum {
         WALLET_EVENT_CREATED = 0,
         WALLET_EVENT_BALANCE_UPDATED,
         WALLET_EVENT_DEFAULT_GAS_LIMIT_UPDATED,
         WALLET_EVENT_DEFAULT_GAS_PRICE_UPDATED,
-        WALLET_EVENT_DELETED
+        WALLET_EVENT_FEE_ESTIMATED,
+        WALLET_EVENT_DELETED,
+    } BREthereumWalletEventType;
+
+    typedef struct {
+        BREthereumWalletEventType type;
+        BREthereumStatus status;
+        union {
+            struct {
+                BREthereumCookie cookie;
+                BREthereumGas gasEstimate;
+                BREthereumGasPrice gasPrice;
+            } feeEstimate;
+        } u;
+        char errorDescription[16];
     } BREthereumWalletEvent;
 
-#define WALLET_NUMBER_OF_EVENTS  (1 + WALLET_EVENT_DELETED)
+#define WALLET_NUMBER_OF_EVENT_TYPES  (1 + WALLET_EVENT_DELETED)
 
+    extern BREthereumWalletEvent
+    walletEventCreateError (BREthereumWalletEventType type,
+                            BREthereumStatus status,
+                            const char *errorDescription);
+    
     typedef void (*BREthereumClientHandlerWalletEvent) (BREthereumClientContext context,
                                                         BREthereumEWM ewm,
                                                         BREthereumWallet wid,
-                                                        BREthereumWalletEvent event,
-                                                        BREthereumStatus status,
-                                                        const char *errorDescription);
+                                                        BREthereumWalletEvent event);
 
+#if defined (NEVER_DEFINED)
     typedef enum {
         BLOCK_EVENT_CREATED = 0,
 
@@ -336,17 +322,20 @@ extern "C" {
         BLOCK_EVENT_ORPHANED,
 
         BLOCK_EVENT_DELETED
+    } BREthereumBlockEventType;
+
+#define BLOCK_NUMBER_OF_EVENT_TYPES (1 + BLOCK_EVENT_DELETED)
+
+    typedef struct {
+        BREthereumBlockEventType type;
+        BREthereumStatus status;
+        char errorDescription[16];
     } BREthereumBlockEvent;
 
-#define BLOCK_NUMBER_OF_EVENTS (1 + BLOCK_EVENT_DELETED)
-
-#if defined (NEVER_DEFINED)
     typedef void (*BREthereumClientHandlerBlockEvent) (BREthereumClientContext context,
                                                        BREthereumEWM ewm,
                                                        BREthereumBlock bid,
-                                                       BREthereumBlockEvent event,
-                                                       BREthereumStatus status,
-                                                       const char *errorDescription);
+                                                       BREthereumBlockEvent event);
 #endif
 
     typedef enum {
@@ -359,70 +348,118 @@ extern "C" {
         TRANSFER_EVENT_INCLUDED,  // aka confirmed
         TRANSFER_EVENT_ERRORED,
 
-
         TRANSFER_EVENT_GAS_ESTIMATE_UPDATED,
-        TRANSFER_EVENT_BLOCK_CONFIRMATIONS_UPDATED,
 
         TRANSFER_EVENT_DELETED
+    } BREthereumTransferEventType;
 
+#define TRANSACTION_NUMBER_OF_EVENT_TYPES (1 + TRANSACTION_EVENT_DELETED)
+
+    typedef struct {
+        BREthereumTransferEventType type;
+        BREthereumStatus status;
+        // uniont {} u;
+        char errorDescription[16];
     } BREthereumTransferEvent;
 
-#define TRANSACTION_NUMBER_OF_EVENTS (1 + TRANSACTION_EVENT_DELETED)
+    extern BREthereumTransferEvent
+    transferEventCreateError (BREthereumTransferEventType type,
+                              BREthereumStatus status,
+                              const char *errorDescription);
 
     typedef void (*BREthereumClientHandlerTransferEvent) (BREthereumClientContext context,
                                                           BREthereumEWM ewm,
                                                           BREthereumWallet wid,
                                                           BREthereumTransfer tid,
-                                                          BREthereumTransferEvent event,
-                                                          BREthereumStatus status,
-                                                          const char *errorDescription);
+                                                          BREthereumTransferEvent event);
 
     typedef enum {
         PEER_EVENT_CREATED = 0,
         PEER_EVENT_DELETED
         // added/removed/updated
-    } BREthereumPeerEvent;
+    } BREthereumPeerEventType;
 
-#define PEER_NUMBER_OF_EVENTS   (1 + PEER_EVENT_DELETED)
+#define PEER_NUMBER_OF_EVENT_TYPES   (1 + PEER_EVENT_DELETED)
+    typedef struct {
+        BREthereumPeerEventType type;
+        BREthereumStatus status;
+        // union { } u;
+        char errorDescription[16];
+    } BREthereumPeerEvent;
 
     typedef void (*BREthereumClientHandlerPeerEvent) (BREthereumClientContext context,
                                                       BREthereumEWM ewm,
-                                                      // BREthereumWallet wid,
-                                                      // BREthereumTransaction tid,
-                                                      BREthereumPeerEvent event,
-                                                      BREthereumStatus status,
-                                                      const char *errorDescription);
+                                                      BREthereumPeerEvent event);
 
     typedef enum {
         TOKEN_EVENT_CREATED = 0,
         TOKEN_EVENT_DELETED
+    } BREthereumTokenEventType;
+
+#define TOKEN_NUMBER_OF_EVENT_TYPES  (1 + TOKEN_EVENT_DELETED)
+
+    typedef struct {
+        BREthereumTokenEventType type;
+        BREthereumStatus status;
+        // union {} u;
+        char errorDescription[16];
     } BREthereumTokenEvent;
-
-#define TOKEN_NUMBER_OF_EVENTS  (1 + TOKEN_EVENT_DELETED)
-
+    
     typedef void (*BREthereumClientHandlerTokenEvent) (BREthereumClientContext context,
                                                        BREthereumEWM ewm,
                                                        BREthereumToken token,
                                                        BREthereumTokenEvent event);
 
     typedef enum {
+        EWM_STATE_CREATED,
+        EWM_STATE_CONNECTED,
+        EWM_STATE_SYNCING,
+        EWM_STATE_DISCONNECTED,
+        EWM_STATE_DELETED
+    } BREthereumEWMState;
+
+    typedef enum {
         EWM_EVENT_CREATED = 0,
-        EWM_EVENT_SYNC_STARTED,
-        EWM_EVENT_SYNC_CONTINUES,
-        EWM_EVENT_SYNC_STOPPED,
+        EWM_EVENT_CHANGED,
+
+        EWM_EVENT_SYNC_PROGRESS,
+        EWM_EVENT_BLOCK_HEIGHT_UPDATED,
         EWM_EVENT_NETWORK_UNAVAILABLE,
-        EWM_EVENT_DELETED
+
+        EWM_EVENT_DELETED,
+    } BREthereumEWMEventType;
+
+#define EWM_NUMBER_OF_EVENT_TYPES   (1 + EWM_EVENT_DELETED)
+
+    typedef struct {
+        BREthereumEWMEventType type;
+        BREthereumStatus status;
+        union {
+            struct {
+                BREthereumEWMState oldState;
+                BREthereumEWMState newState;
+            } changed;
+            struct {
+                BRSyncTimestamp timestamp;
+                BRSyncPercentComplete percentComplete;
+            } syncProgress;
+            struct {
+                uint64_t value;
+            } blockHeight;
+        } u;
+        char errorDescription[16];
     } BREthereumEWMEvent;
 
-#define EWM_NUMBER_OF_EVENTS   (1 + EWM_EVENT_DELETED)
+    extern BREthereumEWMEvent
+    ewmEventCreateError (BREthereumEWMEventType type,
+                         BREthereumStatus status,
+                         const char *errorDescription);
 
     typedef void (*BREthereumClientHandlerEWMEvent) (BREthereumClientContext context,
                                                      BREthereumEWM ewm,
                                                      // BREthereumWallet wid,
                                                      // BREthereumTransaction tid,
-                                                     BREthereumEWMEvent event,
-                                                     BREthereumStatus status,
-                                                     const char *errorDescription);
+                                                     BREthereumEWMEvent event);
 
     //
     // EWM Configuration

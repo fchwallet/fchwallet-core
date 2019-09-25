@@ -1,32 +1,17 @@
 //
 //  BBREthereumWallet.h
-//  breadwallet-core Ethereum
+//  Core Ethereum
 //
 //  Created by Ed Gamble on 2/21/2018.
-//  Copyright (c) 2018 breadwallet LLC
+//  Copyright © 2018-2019 Breadwinner AG.  All rights reserved.
 //
-//  Permission is hereby granted, free of charge, to any person obtaining a copy
-//  of this software and associated documentation files (the "Software"), to deal
-//  in the Software without restriction, including without limitation the rights
-//  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-//  copies of the Software, and to permit persons to whom the Software is
-//  furnished to do so, subject to the following conditions:
-//
-//  The above copyright notice and this permission notice shall be included in
-//  all copies or substantial portions of the Software.
-//
-//  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-//  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-//  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-//  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-//  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-//  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-//  THE SOFTWARE.
+//  See the LICENSE file at the project root for license information.
+//  See the CONTRIBUTORS file at the project root for a list of contributors.
 
 #ifndef BR_Ethereum_Wallet_H
 #define BR_Ethereum_Wallet_H
 
-#include "../blockchain/BREthereumBlockChain.h"
+#include "ethereum/blockchain/BREthereumBlockChain.h"
 #include "BREthereumBase.h"
 #include "BREthereumAccount.h"
 #include "BREthereumTransfer.h"
@@ -34,19 +19,6 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-/**
- * An EthereumWallet holds ETH or ERC20 Tokens.
- *
- * GetEtherPerHolding
- * SetEtherPerHolding
- * GetHoldingValueInEther
- *
- * GetLocalCurrentyPerHolding
- * SetLocalCurrencyPerHolding
- * GetHoldingValueInLocalCurrency
- */
-//typedef struct BREthereumWalletRecord *BREthereumWallet;
 
 /**
  * Create a wallet holding ETH; will use the account's primary address.
@@ -224,36 +196,36 @@ typedef void (*BREthereumTransferWalker) (void *context, BREthereumTransfer tran
 
 extern int
 transferPredicateAny (void *ignore,
-                         BREthereumTransfer transfer,
-                         unsigned int index);
+                      BREthereumTransfer transfer,
+                      unsigned int index);
 
 extern int
 transferPredicateStatus (BREthereumTransferStatus status,
-                            BREthereumTransfer transfer,
-                            unsigned int index);
+                         BREthereumTransfer transfer,
+                         unsigned int index);
 
 extern void
 walletWalkTransfers (BREthereumWallet wallet,
-                        void *context,
-                        BREthereumTransferPredicate predicate,
-                        BREthereumTransferWalker walker);
+                     void *context,
+                     BREthereumTransferPredicate predicate,
+                     BREthereumTransferWalker walker);
 
 extern BREthereumTransfer
-walletGetTransferByHash (BREthereumWallet wallet,
-                            BREthereumHash hash);
+walletGetTransferByIdentifier (BREthereumWallet wallet,
+                               BREthereumHash hash);
 
 extern BREthereumTransfer
 walletGetTransferByOriginatingHash (BREthereumWallet wallet,
                                     BREthereumHash hash);
-    
+
 extern BREthereumTransfer
 walletGetTransferByNonce(BREthereumWallet wallet,
-                            BREthereumAddress sourceAddress,
-                            uint64_t nonce);
+                         BREthereumAddress sourceAddress,
+                         uint64_t nonce);
 
 extern BREthereumTransfer
 walletGetTransferByIndex(BREthereumWallet wallet,
-                            uint64_t index);
+                         uint64_t index);
 
 extern unsigned long
 walletGetTransferCount (BREthereumWallet wallet);
@@ -262,12 +234,6 @@ walletGetTransferCount (BREthereumWallet wallet);
 // Private
 // TODO: Make 'static'
 //
-
-// Returns Ether appropriate for encoding a transaction.  If the transaction is for a TOKEN,
-// then the returned Ether is zero (because the amount of a TOKEN transfer is encoded in the
-// contract's function call, in the transaction.data field).
-private_extern BREthereumEther
-transferGetEffectiveAmountInEther (BREthereumTransfer transfer);
 
 private_extern void
 walletSetBalance (BREthereumWallet wallet,
@@ -305,6 +271,46 @@ walletUnhandleTransfer (BREthereumWallet wallet,
 private_extern int
 walletHasTransfer (BREthereumWallet wallet,
                    BREthereumTransfer transaction);
+
+/// MARK: - Persisted Wallet State;
+
+typedef struct BREthereumWalletStateRecord *BREthereumWalletState;
+
+extern BREthereumWalletState
+walletStateCreate (const BREthereumWallet wallet);
+
+extern void
+walletStateRelease (BREthereumWalletState state);
+
+/**
+ * If WalletState holds Ether, then the address will be EMPTY_ADDRESS_INIT
+ */
+extern BREthereumAddress
+walletStateGetAddress (const BREthereumWalletState walletState);
+
+extern UInt256
+walletStateGetAmount (const BREthereumWalletState walletState);
+
+extern uint64_t
+walletStateGetNonce (const BREthereumWalletState walletState);
+
+extern void
+walletStateSetNonce (BREthereumWalletState walletState,
+                     uint64_t nonce);
+
+extern BRRlpItem
+walletStateEncode (const BREthereumWalletState walletState,
+                   BRRlpCoder coder);
+
+extern BREthereumWalletState
+walletStateDecode (BRRlpItem item,
+                   BRRlpCoder coder);
+
+extern BREthereumHash
+walletStateGetHash (const BREthereumWalletState walletState);
+
+extern BRSetOf(BREthereumWalletState)
+walletStateSetCreate (size_t capacity);
 
 #ifdef __cplusplus
 }
