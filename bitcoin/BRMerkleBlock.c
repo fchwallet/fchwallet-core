@@ -25,7 +25,7 @@
 #include "BRMerkleBlock.h"
 #include "BRCrypto.h"
 #include "BRAddress.h"
-#include "support/BRSupport.h"
+#include "BRBase.h"
 #include <stdlib.h>
 #include <inttypes.h>
 #include <limits.h>

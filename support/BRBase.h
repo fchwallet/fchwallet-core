@@ -33,6 +33,13 @@ extern "C" {
 #define OwnershipGiven
 #define OwnershipKept
 
+// Address: "Value Store in `var` is never read"
+#ifdef __clang_analyzer__
+#  define ANALYZER_IGNORE_UNREAD_VARIABLE(var)     ((void) var)
+#else
+#  define ANALYZER_IGNORE_UNREAD_VARIABLE(var)
+#endif
+
 #ifdef __cplusplus
 }
 #endif
