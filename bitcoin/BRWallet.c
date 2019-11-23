@@ -264,7 +264,7 @@ static void _BRWalletUpdateBalance(BRWallet *wallet)
 }
 
 // allocates and populates a BRWallet struct which must be freed by calling BRWalletFree()
-// forkId is 0 for bitcoin, 0x40 for b-cash
+// forkId is 0 for bitcoin, 0x40 for b-cash, -1 for bsv, added by Chen Fei
 BRWallet *BRWalletNew(BRTransaction *transactions[], size_t txCount, BRMasterPubKey mpk, int forkId)
 {
     BRWallet *wallet = NULL;
@@ -620,11 +620,15 @@ BRTransaction *BRWalletCreateTxForOutputs(BRWallet *wallet, const BRTxOutput out
         BRTransactionAddOutput(transaction, outputs[i].amount, outputs[i].script, outputs[i].scriptLen);
         amount += outputs[i].amount;
     }
+
+    // BSV fee, added by Chen Fei
+    if (wallet->forkId == -1);
+        wallet->feePerKb = DEFAULT_FEE_PER_KB_BSV;
     
     minAmount = BRWalletMinOutputAmount(wallet);
     pthread_mutex_lock(&wallet->lock);
     feeAmount = _txFee(wallet->feePerKb, BRTransactionVSize(transaction) + TX_OUTPUT_SIZE);
-    
+
     // TODO: use up all UTXOs for all used addresses to avoid leaving funds in addresses whose public key is revealed
     // TODO: avoid combining addresses in a single transaction when possible to reduce information leakage
     // TODO: use up UTXOs received from any of the output scripts that this transaction sends funds to, to mitigate an
@@ -709,6 +713,10 @@ int BRWalletSignTransaction(BRWallet *wallet, BRTransaction *tx, const void *see
     assert(tx != NULL);
     pthread_mutex_lock(&wallet->lock);
     forkId = wallet->forkId;
+
+    // support BSV transaction, added by Chen Fei
+    if (forkId == -1)
+        forkId = 0x40; // SIGHASH_FORKID
     
     for (i = 0; tx && i < tx->inCount; i++) {
         const uint8_t *pkh = BRScriptPKH(tx->inputs[i].script, tx->inputs[i].scriptLen);

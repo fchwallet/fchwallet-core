@@ -237,6 +237,11 @@ static int _BRPeerAcceptVersionMessage(BRPeer *peer, const uint8_t *msg, size_t 
             peer_log(peer, "got version %"PRIu32", services %"PRIx64", useragent:\"%s\"", ctx->version, peer->services,
                      ctx->useragent);
             BRPeerSendVerackMessage(peer);
+            // TODO filter the BCH peer when current peer is BSV, added by Chen Fei
+            // char *agent = ctx->useragent;
+            // if (strlen(agent) > 12 && agent[9] == 83 && agent[10] == 86) {
+            //     BRPeerSendVerackMessage(peer);
+            // }
         }
     }
     

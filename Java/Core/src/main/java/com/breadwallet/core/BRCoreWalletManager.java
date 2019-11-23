@@ -169,7 +169,7 @@ public class BRCoreWalletManager implements
         else if (chainParams == BRCoreChainParams.mainnetBcashChainParams
                 || chainParams == BRCoreChainParams.testnetBcashChainParams)
             return 0x40;
-        else return -1;
+        else return -1;  // BSV return -1, added by Chen Fei
     }
 
     //
@@ -336,6 +336,10 @@ public class BRCoreWalletManager implements
             return "Bitcash Mainnet";
         else if (chainParams == BRCoreChainParams.testnetBcashChainParams)
             return "Bitcash Testnet";
+        else if (chainParams == BRCoreChainParams.mainnetBsvChainParams)
+            return "Bsv Mainnet";
+        else if (chainParams == BRCoreChainParams.testnetBsvChainParams)
+            return "Bsv Testnet";
         return "Unknown";
     }
     // ============================================================================================

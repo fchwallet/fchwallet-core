@@ -80,6 +80,10 @@ target_sources (core
                 src/main/cpp/core/bcash/BRBCashAddr.h
                 src/main/cpp/core/bcash/BRBCashParams.h
                 src/main/cpp/core/bcash/BRBCashParams.c
+
+                # BCash files
+                src/main/cpp/core/bsv/BRBsvParams.h
+                src/main/cpp/core/bsv/BRBsvParams.c
                 )
 
 # Core JNI
