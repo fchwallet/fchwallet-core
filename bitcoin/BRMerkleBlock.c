@@ -30,6 +30,8 @@
 #include <limits.h>
 #include <string.h>
 #include <assert.h>
+#include "BRArray.h"
+//#include "../ethereum/util/BRUtil.h"
 
 #define MAX_PROOF_OF_WORK 0x1d00ffff    // highest value for difficulty target (higher values are less difficult)
 #define TARGET_TIMESPAN   (14*24*60*60) // the targeted timespan between difficulty target adjustments
@@ -225,14 +227,17 @@ void BRMerkleBlockSetTxHashes(BRMerkleBlock *block, const UInt256 hashes[], size
 {
     assert(block != NULL);
     assert(hashes != NULL || hashesCount == 0);
-    assert(flags != NULL || flagsLen == 0);
-    
+//    assert(flags != NULL || flagsLen == 0);
+
     if (block->hashes) free(block->hashes);
     block->hashes = (hashesCount > 0) ? malloc(hashesCount*sizeof(UInt256)) : NULL;
     if (block->hashes) memcpy(block->hashes, hashes, hashesCount*sizeof(UInt256));
-    if (block->flags) free(block->flags);
-    block->flags = (flagsLen > 0) ? malloc(flagsLen) : NULL;
-    if (block->flags) memcpy(block->flags, flags, flagsLen);
+
+    if (flagsLen > 0) {
+        if (block->flags) free(block->flags);
+        block->flags = (flagsLen > 0) ? malloc(flagsLen) : NULL;
+        if (block->flags) memcpy(block->flags, flags, flagsLen);
+    }
 }
 
 // recursively walks the merkle tree to calculate the merkle root
@@ -370,4 +375,180 @@ void BRMerkleBlockFree(BRMerkleBlock *block)
     if (block->hashes) free(block->hashes);
     if (block->flags) free(block->flags);
     free(block);
+}
+
+// added by Chen Fei, for XSV
+/***
+ * uint8_t nCnMajorVersion;
+ * uint8_t nCnMinorVersion;
+ * uint32_t nTime;
+ * uint256 hashPrevBlock;
+ * uint32_t nNonce;
+ * int32_t nVersion;
+ * uint256 hashMerkleRoot;
+ * uint32_t nBits;
+ * uint64_t nCnDifficulty;
+ * std::string strCnExtral;
+ * uint32_t nCnReserveOffset;
+ * uint32_t nCnTx;
+ */
+BRMerkleBlock *BRXsvMerkleBlockParse(const uint8_t *buf, size_t bufLen)
+{
+    BRMerkleBlock *block = (buf && 184 <= bufLen) ? BRMerkleBlockNew() : NULL;
+    size_t off = 0, len = 0;
+
+    assert(buf != NULL || bufLen == 0);
+
+    if (block) {
+        block->cnMajor = (size_t)BRVarInt(&buf[off], (off <= bufLen ? bufLen - off : 0), &len);
+        off += len;
+        block->cnMinor = (size_t)BRVarInt(&buf[off], (off <= bufLen ? bufLen - off : 0), &len);
+        off += len;
+
+        block->timestamp = UInt32GetLE(&buf[off]);
+        off += sizeof(uint32_t);
+        block->prevBlock = UInt256Get(&buf[off]);
+        off += sizeof(UInt256);
+        block->nonce = UInt32GetLE(&buf[off]);
+        off += sizeof(uint32_t);
+        block->version = UInt32GetLE(&buf[off]);
+        off += sizeof(uint32_t);
+        block->merkleRoot = UInt256Get(&buf[off]);
+        off += sizeof(UInt256);
+        block->target = UInt32GetLE(&buf[off]);
+        off += sizeof(uint32_t);
+
+        block->cnDifficulty = UInt64GetLE(&buf[off]);
+        off += sizeof(uint64_t);
+
+        size_t strLen = (size_t)BRVarInt(&buf[off], (off <= bufLen ? bufLen - off : 0), &len);
+        off += len;
+        array_new(block->cnExtral, strLen);
+        array_add_array(block->cnExtral, &buf[off], strLen);
+        off += strLen;
+
+        block->cnOffset = UInt32GetLE(&buf[off]);
+        off += sizeof(uint32_t);
+        block->cnTx = UInt32GetLE(&buf[off]);
+        off += sizeof(uint32_t);
+
+        if (off + sizeof(uint32_t) <= bufLen) {
+            block->totalTx = UInt32GetLE(&buf[off]);
+            off += sizeof(uint32_t);
+            block->hashesCount = (size_t)BRVarInt(&buf[off], (off <= bufLen ? bufLen - off : 0), &len);
+            off += len;
+            len = block->hashesCount*sizeof(UInt256);
+            block->hashes = (off + len <= bufLen) ? malloc(len) : NULL;
+            if (block->hashes) {
+                memcpy(block->hashes, &buf[off], len);
+            }
+            off += len;
+            block->flagsLen = (size_t)BRVarInt(&buf[off], (off <= bufLen ? bufLen - off : 0), &len);
+            off += len;
+            len = block->flagsLen;
+            block->flags = (off + len <= bufLen) ? malloc(len) : NULL;
+            if (block->flags) memcpy(block->flags, &buf[off], len);
+        }
+
+        BRSHA256_2(&block->blockHash, buf, 80 + 1 + 1 + 8 + 1 + strLen + 4 + 4);
+
+//        if (block->timestamp > 1575881220) {
+//            eth_log ("###parse", "timestamp = %"PRIu32" ", block->timestamp);
+//            eth_log ("###parse", "nonce = %"PRIu32" ", block->nonce);
+//            eth_log ("###parse", "version = %"PRIu32" ", block->version);
+//            eth_log ("###parse", "cnDifficulty = %"PRIu64" ", block->cnDifficulty);
+//            eth_log ("###parse", "strLen = %d ", strLen);
+//            eth_log ("###parse", "cnOffset = %"PRIu32" ", block->cnOffset);
+//            eth_log ("###parse", "cnTx = %"PRIu32" ", block->cnTx);
+//            eth_log ("###parse", "totalTx = %d ", block->totalTx);
+//            eth_log ("###parse", "flagsLen = %d ", block->flagsLen);
+//            eth_log ("###parse", "blockHash = %s ", u256hex(block->blockHash));
+//        }
+    }
+
+    return block;
+}
+
+size_t BRXsvMerkleBlockSerialize(const BRMerkleBlock *block, uint8_t *buf, size_t bufLen)
+{
+    size_t off = 0, len = 184;
+
+    assert(block != NULL);
+
+    if (block->totalTx > 0) {
+        len += sizeof(uint32_t) + BRVarIntSize(block->hashesCount) + block->hashesCount*sizeof(UInt256) +
+               BRVarIntSize(block->flagsLen) + block->flagsLen;
+    }
+
+    if (buf && len <= bufLen) {
+
+        off += BRVarIntSet(&buf[off], (off <= bufLen ? bufLen - off : 0), block->cnMajor);
+        off += BRVarIntSet(&buf[off], (off <= bufLen ? bufLen - off : 0), block->cnMinor);
+
+        UInt32SetLE(&buf[off], block->timestamp);
+        off += sizeof(uint32_t);
+        UInt256Set(&buf[off], block->prevBlock);
+        off += sizeof(UInt256);
+        UInt32SetLE(&buf[off], block->nonce);
+        off += sizeof(uint32_t);
+        UInt32SetLE(&buf[off], block->version);
+        off += sizeof(uint32_t);
+        UInt256Set(&buf[off], block->merkleRoot);
+        off += sizeof(UInt256);
+        UInt32SetLE(&buf[off], block->target);
+        off += sizeof(uint32_t);
+
+        UInt64SetLE(&buf[off], block->cnDifficulty);
+        off += sizeof(uint64_t);
+
+        off += BRVarIntSet(&buf[off], (off <= bufLen ? bufLen - off : 0), 85);
+        for (int i = 0; i < 85; i++) {
+            off += BRVarIntSet(&buf[off], (off <= bufLen ? bufLen - off : 0), (uint8_t)(block->cnExtral[i]));
+        }
+
+        UInt32SetLE(&buf[off], block->cnOffset);
+        off += sizeof(uint32_t);
+        UInt32SetLE(&buf[off], block->cnTx);
+        off += sizeof(uint32_t);
+
+        if (block->totalTx > 0) {
+            UInt32SetLE(&buf[off], block->totalTx);
+            off += sizeof(uint32_t);
+            off += BRVarIntSet(&buf[off], (off <= bufLen ? bufLen - off : 0), block->hashesCount);
+            if (block->hashes) memcpy(&buf[off], block->hashes, block->hashesCount*sizeof(UInt256));
+            off += block->hashesCount*sizeof(UInt256);
+            off += BRVarIntSet(&buf[off], (off <= bufLen ? bufLen - off : 0), block->flagsLen);
+            if (block->flags) memcpy(&buf[off], block->flags, block->flagsLen);
+            off += block->flagsLen;
+        }
+    }
+
+//    if (block->timestamp > 1575881224) {
+//        eth_log ("###seri", "timestamp = %"PRIu32" ", block->timestamp);
+//        eth_log ("###seri", "nonce = %"PRIu32" ", block->nonce);
+//        eth_log ("###seri", "version = %"PRIu32" ", block->version);
+//        eth_log ("###seri", "cnDifficulty = %"PRIu64" ", block->cnDifficulty);
+//        eth_log ("###seri", "cnOffset = %"PRIu32" ", block->cnOffset);
+//        eth_log ("###seri", "cnTx = %"PRIu32" ", block->cnTx);
+//        eth_log ("###seri", "totalTx = %d ", block->totalTx);
+//        eth_log ("###seri", "flagsLen = %d ", block->flagsLen);
+//    }
+    return (! buf || len <= bufLen) ? len : 0;
+}
+
+int BRXsvMerkleBlockIsValid(const BRMerkleBlock *block, uint32_t currentTime)
+{
+    assert(block != NULL);
+
+    size_t hashIdx = 0, flagIdx = 0;
+    UInt256 merkleRoot = _BRMerkleBlockRootR(block, &hashIdx, &flagIdx, 0);
+    int r = 1;
+
+    // check if merkle root is correct
+    if (block->totalTx > 0 && ! UInt256Eq(merkleRoot, block->merkleRoot)) r = 0;
+
+    // check if timestamp is too far in future
+    if (block->timestamp > currentTime + BLOCK_MAX_TIME_DRIFT) r = 0;
+
+    return r;
 }

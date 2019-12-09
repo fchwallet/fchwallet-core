@@ -63,6 +63,8 @@ public class BRCoreMerkleBlock extends BRCoreJniReference {
      */
     public native byte[] serialize ();
 
+    public native byte[] serializeXsv ();
+
     public native boolean isValid (long currentTime);
 
     /**

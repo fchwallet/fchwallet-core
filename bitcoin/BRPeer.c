@@ -181,6 +181,125 @@ static void _BRPeerDidConnect(BRPeer *peer)
     }
 }
 
+// added by Chen Fei, for XSV
+static int _BRXsvPeerAcceptHeadersMessage(BRPeer *peer, const uint8_t *msg, size_t msgLen)
+{
+    BRPeerContext *ctx = (BRPeerContext *)peer;
+    size_t off = 0, count = (size_t)BRVarInt(msg, msgLen, &off);
+    int r = 1;
+
+    if (off == 0 || off + 185*count > msgLen) {
+        peer_log(peer, "malformed headers message, length is %zu, should be %zu for %zu header(s)", msgLen,
+                 BRVarIntSize(count) + 185*count, count);
+        r = 0;
+    }
+    else {
+        peer_log(peer, "got xsv %zu header(s)", count);
+
+        // To improve chain download performance, if this message contains 2000 headers then request the next 2000
+        // headers immediately, and switch to requesting blocks when we receive a header newer than earliestKeyTime
+        uint32_t timestamp = (count > 0) ? UInt32GetLE(&msg[off + 185*(count - 1) + 2]) : 0;
+
+        if (count >= 2000 || (timestamp > 0 && timestamp + 7*24*60*60 + BLOCK_MAX_TIME_DRIFT >= ctx->earliestKeyTime)) {
+            size_t last = 0;
+            time_t now = time(NULL);
+            UInt256 locators[2];
+
+            BRSHA256_2(&locators[0], &msg[off + 185*(count - 1)], 184);
+            BRSHA256_2(&locators[1], &msg[off], 184);
+
+            if (timestamp > 0 && timestamp + 7*24*60*60 + BLOCK_MAX_TIME_DRIFT >= ctx->earliestKeyTime) {
+                // request blocks for the remainder of the chain
+                timestamp = (++last < count) ? UInt32GetLE(&msg[off + 185*last + 2]) : 0;
+
+                while (timestamp > 0 && timestamp + 7*24*60*60 + BLOCK_MAX_TIME_DRIFT < ctx->earliestKeyTime) {
+                    timestamp = (++last < count) ? UInt32GetLE(&msg[off + 185*last + 2]) : 0;
+                }
+
+                BRSHA256_2(&locators[0], &msg[off + 185*(last - 1)], 184);
+                peer_log(peer, "###_header[0] = %s", u256hex(locators[0]));
+                peer_log(peer, "###_header[1] = %s", u256hex(locators[1]));
+                BRPeerSendGetblocks(peer, locators, 2, UINT256_ZERO);
+            }
+            else {
+                BRPeerSendGetheaders(peer, locators, 2, UINT256_ZERO);
+            }
+
+            for (size_t i = 0; r && i < count; i++) {
+                BRMerkleBlock *block = BRXsvMerkleBlockParse(&msg[off + 185 * i], 185);
+                if (! block) {
+                    peer_log(peer, "malformed headers message with length: %zu", msgLen);
+                    r = 0;
+                }
+                else if (! BRXsvMerkleBlockIsValid(block, (uint32_t)now)) {
+                    peer_log(peer, "invalid xsv block header: %s", u256hex(block->blockHash));
+                    BRMerkleBlockFree(block);
+                    r = 0;
+                }
+                else if (ctx->relayedBlock) {
+                    ctx->relayedBlock(ctx->info, block);
+                }
+                else BRMerkleBlockFree(block);
+            }
+        }
+        else {
+            peer_log(peer, "non-standard xsv headers message, %zu is fewer header(s) than expected", count);
+            r = 0;
+        }
+    }
+    return r;
+}
+
+static int _BRXsvPeerAcceptMerkleblockMessage(BRPeer *peer, const uint8_t *msg, size_t msgLen)
+{
+    BRPeerContext *ctx = (BRPeerContext *)peer;
+    BRMerkleBlock *block = BRXsvMerkleBlockParse(msg, msgLen);
+    int r = 1;
+
+    if (! block) {
+        peer_log(peer, "malformed merkleblock message with length: %zu", msgLen);
+        r = 0;
+    }
+    else if (! BRXsvMerkleBlockIsValid(block, (uint32_t)time(NULL))) {
+        peer_log(peer, "invalid xsv merkleblock: %s", u256hex(block->blockHash));
+        BRMerkleBlockFree(block);
+        block = NULL;
+        r = 0;
+    }
+    else if (! ctx->sentFilter && ! ctx->sentGetdata) {
+        peer_log(peer, "got merkleblock message before loading a filter");
+        BRMerkleBlockFree(block);
+        block = NULL;
+        r = 0;
+    }
+    else {
+        size_t count = BRMerkleBlockTxHashes(block, NULL, 0);
+        UInt256 _hashes[128], *hashes = (count <= 128) ? _hashes : malloc(count*sizeof(UInt256));
+
+        assert(hashes != NULL);
+        count = BRMerkleBlockTxHashes(block, hashes, count);
+
+        for (size_t i = count; i > 0; i--) { // reverse order for more efficient removal as tx arrive
+            if (BRSetContains(ctx->knownTxHashSet, &hashes[i - 1])) continue;
+            array_add(ctx->currentBlockTxHashes, hashes[i - 1]);
+        }
+
+        if (hashes != _hashes) free(hashes);
+    }
+
+    if (block) {
+        if (array_count(ctx->currentBlockTxHashes) > 0) { // wait til we get all tx messages before processing the block
+            ctx->currentBlock = block;
+        }
+        else if (ctx->relayedBlock) {
+            ctx->relayedBlock(ctx->info, block);
+        }
+        else BRMerkleBlockFree(block);
+    }
+
+    return r;
+}
+
 static int _BRPeerAcceptVersionMessage(BRPeer *peer, const uint8_t *msg, size_t msgLen)
 {
     BRPeerContext *ctx = (BRPeerContext *)peer;
@@ -237,7 +356,7 @@ static int _BRPeerAcceptVersionMessage(BRPeer *peer, const uint8_t *msg, size_t 
             peer_log(peer, "got version %"PRIu32", services %"PRIx64", useragent:\"%s\"", ctx->version, peer->services,
                      ctx->useragent);
             BRPeerSendVerackMessage(peer);
-            // TODO filter the BCH peer when current peer is BSV, added by Chen Fei
+            // TODO Chen Fei, filter the BCH peer when current peer is BSV
             // char *agent = ctx->useragent;
             // if (strlen(agent) > 12 && agent[9] == 83 && agent[10] == 86) {
             //     BRPeerSendVerackMessage(peer);
@@ -396,7 +515,8 @@ static int _BRPeerAcceptInvMessage(BRPeer *peer, const uint8_t *msg, size_t msgL
             // to improve chain download performance, if we received 500 block hashes, request the next 500 block hashes
             if (blockCount >= 500) {
                 UInt256 locators[] = { blockHashes[blockCount - 1], blockHashes[0] };
-            
+                peer_log(peer, "###_inv[0] = %s", u256hex(locators[0]));
+                peer_log(peer, "###_inv[1] = %s", u256hex(locators[1]));
                 BRPeerSendGetblocks(peer, locators, 2, UINT256_ZERO);
             }
             
@@ -463,6 +583,9 @@ static int _BRPeerAcceptTxMessage(BRPeer *peer, const uint8_t *msg, size_t msgLe
 static int _BRPeerAcceptHeadersMessage(BRPeer *peer, const uint8_t *msg, size_t msgLen)
 {
     BRPeerContext *ctx = (BRPeerContext *)peer;
+    if (strlen(ctx->useragent) > 2 && ctx->useragent[1] == 'X')
+        return _BRXsvPeerAcceptHeadersMessage(peer, msg, msgLen);
+
     size_t off = 0, count = (size_t)BRVarInt(msg, msgLen, &off);
     int r = 1;
 
@@ -719,6 +842,9 @@ static int _BRPeerAcceptMerkleblockMessage(BRPeer *peer, const uint8_t *msg, siz
     // a merkleblock message, the remote node is expected to send tx messages for the tx referenced in the block. When a
     // non-tx message is received we should have all the tx in the merkleblock.
     BRPeerContext *ctx = (BRPeerContext *)peer;
+    if (strlen(ctx->useragent) > 2 && ctx->useragent[1] == 'X')
+        return _BRXsvPeerAcceptMerkleblockMessage(peer, msg, msgLen);
+
     BRMerkleBlock *block = BRMerkleBlockParse(msg, msgLen);
     int r = 1;
   

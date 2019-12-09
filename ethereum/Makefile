@@ -21,7 +21,8 @@ CORE_SRCS=../support/BRAddress.c \
 	../bitcoin/BRWalletManager.c \
 	../bcash/BRBCashAddr.c \
 	../bcash/BRBCashParams.c \
-	../bsv/BRBsvParams.c
+	../bsv/BRBsvParams.c \
+	../xsv/BRXsvParams.c
 
 CORE_OBJS=$(CORE_SRCS:.c=.o)
 

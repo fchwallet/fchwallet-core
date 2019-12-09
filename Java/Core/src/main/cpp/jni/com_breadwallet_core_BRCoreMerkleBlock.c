@@ -24,12 +24,25 @@ Java_com_breadwallet_core_BRCoreMerkleBlock_createJniCoreMerkleBlock
     jbyte *blockBytes = (*env)->GetByteArrayElements(env, blockArray, 0);
 
     assert (NULL != blockBytes);
-    BRMerkleBlock *block = BRMerkleBlockParse((const uint8_t *) blockBytes, (size_t) blockLength);
-    assert (NULL != block);
-    if (blockHeight != -1)
-        block->height = (uint32_t) blockHeight;
 
-    return (jlong) block;
+    // added by Chen Fei, for XSV
+    if (blockLength > 180) {
+        BRMerkleBlock *block = BRXsvMerkleBlockParse((const uint8_t *) blockBytes, (size_t) blockLength);
+        assert (NULL != block);
+        if (blockHeight != -1)
+            block->height = (uint32_t) blockHeight;
+
+        return (jlong) block;
+
+    } else {
+        BRMerkleBlock *block = BRMerkleBlockParse((const uint8_t *) blockBytes, (size_t) blockLength);
+        assert (NULL != block);
+        if (blockHeight != -1)
+            block->height = (uint32_t) blockHeight;
+
+        return (jlong) block;
+    }
+
 }
 
 /*
@@ -190,6 +203,26 @@ JNIEXPORT jbyteArray JNICALL Java_com_breadwallet_core_BRCoreMerkleBlock_seriali
     return byteArray;
 }
 
+/*
+ * Class:     com_breadwallet_core_BRCoreMerkleBlock
+ * Method:    serializeXsv
+ * Signature: ()[B
+ */
+JNIEXPORT jbyteArray JNICALL Java_com_breadwallet_core_BRCoreMerkleBlock_serializeXsv
+        (JNIEnv *env, jobject thisObject) {
+    BRMerkleBlock *block = (BRMerkleBlock *) getJNIReference(env, thisObject);
+
+    size_t      byteArraySize     = BRXsvMerkleBlockSerialize(block, NULL, 0);
+    jbyteArray  byteArray         = (*env)->NewByteArray (env, (jsize) byteArraySize);
+    jbyte      *byteArrayElements = (*env)->GetByteArrayElements (env, byteArray, JNI_FALSE);
+
+    BRXsvMerkleBlockSerialize(block, (uint8_t *) byteArrayElements, byteArraySize);
+
+    // Ensure ELEMENTS 'written' back to byteArray
+    (*env)->ReleaseByteArrayElements (env, byteArray, byteArrayElements, JNI_COMMIT);
+
+    return byteArray;
+}
 
 /*
  * Class:     com_breadwallet_core_BRCoreMerkleBlock

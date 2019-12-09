@@ -244,7 +244,7 @@ static size_t _BRPeerManagerBlockLocators(BRPeerManager *manager, UInt256 locato
     // finishing with the genesis block (top, -1, -2, -3, -4, -5, -6, -7, -8, -9, -11, -15, -23, -39, -71, -135, ..., 0)
     BRMerkleBlock *block = manager->lastBlock;
     int32_t step = 1, i = 0, j;
-    
+
     while (block && block->height > 0) {
         if (locators && i < locatorsCount) locators[i] = block->blockHash;
         if (++i >= 10) step *= 2;
@@ -356,7 +356,7 @@ static void _updateFilterRerequestDone(void *info, int success)
         if ((peer->flags & PEER_FLAG_NEEDSUPDATE) == 0) {
             UInt256 locators[_BRPeerManagerBlockLocators(manager, NULL, 0)];
             size_t count = _BRPeerManagerBlockLocators(manager, locators, sizeof(locators)/sizeof(*locators));
-            
+
             BRPeerSendGetblocks(peer, locators, count, UINT256_ZERO);
         }
 
@@ -724,7 +724,7 @@ static void _peerConnected(void *info)
     BRPeerManager *manager = ((BRPeerCallbackInfo *)info)->manager;
     BRPeerCallbackInfo *peerInfo;
     time_t now = time(NULL);
-    
+
     pthread_mutex_lock(&manager->lock);
     if (peer->timestamp > now + 2*60*60 || peer->timestamp < now - 2*60*60) peer->timestamp = now; // sanity check
     
@@ -781,7 +781,7 @@ static void _peerConnected(void *info)
         _BRPeerManagerLoadBloomFilter(manager, peer);
         BRPeerSetCurrentBlockHeight(peer, manager->lastBlock->height);
         _BRPeerManagerPublishPendingTx(manager, peer);
-            
+
         if (manager->lastBlock->height < BRPeerLastBlock(peer)) { // start blockchain sync
             UInt256 locators[_BRPeerManagerBlockLocators(manager, NULL, 0)];
             size_t count = _BRPeerManagerBlockLocators(manager, locators, sizeof(locators)/sizeof(*locators));
@@ -1087,8 +1087,59 @@ static void _peerRejectedTx(void *info, UInt256 txHash, uint8_t code)
     if (manager->txStatusUpdate) manager->txStatusUpdate(manager->info);
 }
 
+// added by Chen Fei, for XSV
+static int _BRXsvPeerManagerVerifyBlock(BRPeerManager *manager, BRMerkleBlock *block, BRMerkleBlock *prev, BRPeer *peer)
+{
+    int r = 1;
+
+    if (! prev || ! UInt256Eq(block->prevBlock, prev->blockHash) || block->height != prev->height + 1) r = 0;
+
+    // check if we hit a difficulty transition, and find previous transition time
+    if (r && (block->height % BLOCK_DIFFICULTY_INTERVAL) == 0) {
+        BRMerkleBlock *b = block;
+        UInt256 prevBlock;
+
+        prevBlock = b->prevBlock;
+
+        while (b) { // free up some memory
+            b = BRSetGet(manager->blocks, &prevBlock);
+            if (b) prevBlock = b->prevBlock;
+
+            if (b && (b->height % BLOCK_DIFFICULTY_INTERVAL) != 0) {
+                BRSetRemove(manager->blocks, b);
+                BRMerkleBlockFree(b);
+            }
+        }
+    }
+
+    // verify block difficulty
+    if (r && ! manager->params->verifyDifficulty(block, manager->blocks)) {
+        peer_log(peer, "relayed block with invalid difficulty target %x, blockHash: %s", block->target,
+                 u256hex(block->blockHash));
+        r = 0;
+    }
+
+    if (r) {
+        BRMerkleBlock *checkpoint = BRSetGet(manager->checkpoints, block);
+
+        // verify blockchain checkpoints
+        if (checkpoint && ! BRMerkleBlockEq(block, checkpoint)) {
+            peer_log(peer, "relayed a block that differs from the checkpoint at height %"PRIu32", blockHash: %s, "
+                                                                                               "expected: %s", block->height, u256hex(block->blockHash), u256hex(checkpoint->blockHash));
+            r = 0;
+        }
+    }
+
+    return r;
+}
+
 static int _BRPeerManagerVerifyBlock(BRPeerManager *manager, BRMerkleBlock *block, BRMerkleBlock *prev, BRPeer *peer)
 {
+    const char hex[] = u256hex(block->blockHash);
+    size_t len = strlen(hex);
+    if ( !(hex[len - 1] == '0' && hex[len - 2] == '0' && hex[len - 3] == '0' && hex[len - 4] == '0'))
+        return _BRXsvPeerManagerVerifyBlock(manager, block, prev, peer);
+
     int r = 1;
 
     if (! prev || ! UInt256Eq(block->prevBlock, prev->blockHash) || block->height != prev->height + 1) r = 0;
@@ -1354,7 +1405,7 @@ static void _peerRelayedBlock(void *info, BRMerkleBlock *block)
         saveBlocks[i] = b;
         b = BRSetGet(manager->blocks, &b->prevBlock);
     }
-    
+
     // make sure the set of blocks to be saved starts at a difficulty interval
     j = (i > 0) ? saveBlocks[i - 1]->height % BLOCK_DIFFICULTY_INTERVAL : 0;
     if (j > 0) i -= (i > BLOCK_DIFFICULTY_INTERVAL - j) ? BLOCK_DIFFICULTY_INTERVAL - j : i;
@@ -1508,7 +1559,16 @@ BRPeerManager *BRPeerManagerNew(const BRChainParams *params, BRWallet *wallet, u
         if ((blocks[i]->height % BLOCK_DIFFICULTY_INTERVAL) == 0 &&
             (! block || blocks[i]->height > block->height)) block = blocks[i]; // find last transition block
     }
-    
+
+    // added by Chen Fei, for XSV
+    if (blocksCount > 0) {
+        const char hex[] = u256hex(blocks[0]->blockHash);
+        size_t len = strlen(hex);
+        if (!(hex[len - 1] == '0' && hex[len - 2] == '0' && hex[len - 3] == '0' &&
+              hex[len - 4] == '0'))
+            block = blocks[0];
+    }
+
     while (block) {
         BRSetAdd(manager->blocks, block);
         manager->lastBlock = block;
@@ -1517,7 +1577,7 @@ BRPeerManager *BRPeerManagerNew(const BRChainParams *params, BRWallet *wallet, u
         orphan.prevBlock = block->blockHash;
         block = BRSetGet(manager->orphans, &orphan);
     }
-    
+
     array_new(manager->txRelays, 10);
     array_new(manager->txRequests, 10);
     array_new(manager->publishedTx, 10);

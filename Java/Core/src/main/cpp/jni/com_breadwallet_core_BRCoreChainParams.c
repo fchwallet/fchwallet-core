@@ -10,6 +10,7 @@
 #include "bitcoin/BRChainParams.h"
 #include "bcash/BRBCashParams.h"
 #include "bsv/BRBsvParams.h"
+#include "xsv/BRXsvParams.h"
 #include "com_breadwallet_core_BRCoreChainParams.h"
 
 /*
@@ -93,5 +94,17 @@ JNIEXPORT jlong JNICALL Java_com_breadwallet_core_BRCoreChainParams_createJniTes
         (JNIEnv *env, jclass thisClass) {
     BRChainParams *result = (BRChainParams *) calloc (1, sizeof (BRChainParams));
     memcpy (result, BRBsvTestNetParams, sizeof (BRChainParams));
+    return (jlong) result;
+}
+
+/*
+ * Class:     com_breadwallet_core_BRCoreChainParams
+ * Method:    createJniMainnetXsvChainParams
+ * Signature: ()J
+ */
+JNIEXPORT jlong JNICALL Java_com_breadwallet_core_BRCoreChainParams_createJniMainnetXsvChainParams
+        (JNIEnv *env, jclass thisClass) {
+    BRChainParams *result = (BRChainParams *) calloc (1, sizeof (BRChainParams));
+    memcpy (result, BRXsvMainNetParams, sizeof (BRChainParams));
     return (jlong) result;
 }

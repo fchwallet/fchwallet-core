@@ -51,6 +51,13 @@ typedef struct {
     uint8_t *flags;
     size_t flagsLen;
     uint32_t height;
+    // XSV
+    uint8_t cnMajor;
+    uint8_t cnMinor;
+    uint64_t cnDifficulty;
+    char *cnExtral;
+    uint32_t cnOffset;
+    uint32_t cnTx;
 } BRMerkleBlock;
 
 #define BR_MERKLE_BLOCK_NONE ((const BRMerkleBlock) { UINT256_ZERO, 0, UINT256_ZERO, UINT256_ZERO, 0, 0, 0, 0, NULL, 0,\
@@ -105,6 +112,11 @@ inline static int BRMerkleBlockEq(const void *block, const void *otherBlock)
 
 // frees memory allocated for block
 void BRMerkleBlockFree(BRMerkleBlock *block);
+
+// added by Chen Fei, for XSV
+BRMerkleBlock *BRXsvMerkleBlockParse(const uint8_t *buf, size_t bufLen);
+size_t BRXsvMerkleBlockSerialize(const BRMerkleBlock *block, uint8_t *buf, size_t bufLen);
+int BRXsvMerkleBlockIsValid(const BRMerkleBlock *block, uint32_t currentTime);
 
 #ifdef __cplusplus
 }

@@ -105,6 +105,14 @@ JNIEXPORT jbyteArray JNICALL Java_com_breadwallet_core_BRCoreMerkleBlock_seriali
 
 /*
  * Class:     com_breadwallet_core_BRCoreMerkleBlock
+ * Method:    serializeXsv
+ * Signature: ()[B
+ */
+JNIEXPORT jbyteArray JNICALL Java_com_breadwallet_core_BRCoreMerkleBlock_serializeXsv
+        (JNIEnv *, jobject);
+
+/*
+ * Class:     com_breadwallet_core_BRCoreMerkleBlock
  * Method:    isValid
  * Signature: (J)Z
  */
