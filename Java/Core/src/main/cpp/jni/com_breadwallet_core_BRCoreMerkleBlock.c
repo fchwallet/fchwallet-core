@@ -25,24 +25,36 @@ Java_com_breadwallet_core_BRCoreMerkleBlock_createJniCoreMerkleBlock
 
     assert (NULL != blockBytes);
 
-    // added by Chen Fei, for XSV
-    if (blockLength > 180) {
-        BRMerkleBlock *block = BRXsvMerkleBlockParse((const uint8_t *) blockBytes, (size_t) blockLength);
-        assert (NULL != block);
-        if (blockHeight != -1)
-            block->height = (uint32_t) blockHeight;
+    BRMerkleBlock *block = BRMerkleBlockParse((const uint8_t *) blockBytes, (size_t) blockLength);
+    assert (NULL != block);
+    if (blockHeight != -1)
+        block->height = (uint32_t) blockHeight;
 
-        return (jlong) block;
+    return (jlong) block;
+}
 
-    } else {
-        BRMerkleBlock *block = BRMerkleBlockParse((const uint8_t *) blockBytes, (size_t) blockLength);
-        assert (NULL != block);
-        if (blockHeight != -1)
-            block->height = (uint32_t) blockHeight;
+/*
+ * Class:     com_breadwallet_core_BRCoreMerkleBlock
+ * Method:    createJniXsvCoreMerkleBlock
+ * Signature: ([BI)J
+ */
+JNIEXPORT jlong JNICALL
+Java_com_breadwallet_core_BRCoreMerkleBlock_createJniXsvCoreMerkleBlock
+        (JNIEnv *env, jclass thisClass,
+         jbyteArray blockArray,
+         jint blockHeight) {
 
-        return (jlong) block;
-    }
+    int blockLength   = (*env)->GetArrayLength(env, blockArray);
+    jbyte *blockBytes = (*env)->GetByteArrayElements(env, blockArray, 0);
 
+    assert (NULL != blockBytes);
+
+    BRMerkleBlock *block = BRXsvMerkleBlockParse((const uint8_t *) blockBytes, (size_t) blockLength);
+    assert (NULL != block);
+    if (blockHeight != -1)
+        block->height = (uint32_t) blockHeight;
+
+    return (jlong) block;
 }
 
 /*

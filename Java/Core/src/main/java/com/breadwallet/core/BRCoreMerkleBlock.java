@@ -20,6 +20,10 @@ public class BRCoreMerkleBlock extends BRCoreJniReference {
         this (createJniCoreMerkleBlock (block, blockHeight));
     }
 
+    public BRCoreMerkleBlock(byte[] block, int blockHeight, boolean xsv) {
+        this (createJniXsvCoreMerkleBlock (block, blockHeight));
+    }
+
     protected BRCoreMerkleBlock (long jniReferenceAddress) {
         super (jniReferenceAddress);
     }
@@ -30,6 +34,8 @@ public class BRCoreMerkleBlock extends BRCoreJniReference {
     }
 
     private static native long createJniCoreMerkleBlock (byte[] block, int blockHeight);
+
+    private static native long createJniXsvCoreMerkleBlock (byte[] block, int blockHeight);
 
     // Test
     private static native long createJniCoreMerkleBlockEmpty ();
