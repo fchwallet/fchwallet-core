@@ -883,7 +883,7 @@ static void _peerDisconnected(void *info, int error)
     
     if (willSave && manager->savePeers) manager->savePeers(manager->info, 1, NULL, 0);
     if (willSave && manager->syncStopped) manager->syncStopped(manager->info, error);
-    if (willReconnect) BRPeerManagerConnect(manager); // try connecting to another peer
+    if (willReconnect) BRPeerManagerConnect(manager, peer->forkId); // try connecting to another peer
     if (manager->txStatusUpdate) manager->txStatusUpdate(manager->info);
 }
 
@@ -1650,7 +1650,7 @@ BRPeerStatus BRPeerManagerConnectStatus(BRPeerManager *manager)
 }
 
 // connect to bitcoin peer-to-peer network (also call this whenever networkIsReachable() status changes)
-void BRPeerManagerConnect(BRPeerManager *manager)
+void BRPeerManagerConnect(BRPeerManager *manager, int forkId)
 {
     assert(manager != NULL);
     pthread_mutex_lock(&manager->lock);
@@ -1666,7 +1666,7 @@ void BRPeerManagerConnect(BRPeerManager *manager)
     
     for (size_t i = array_count(manager->connectedPeers); i > 0; i--) {
         BRPeer *p = manager->connectedPeers[i - 1];
-
+        p->forkId = forkId;
         if (BRPeerConnectStatus(p) == BRPeerStatusConnecting) BRPeerConnect(p);
     }
     
@@ -1708,6 +1708,7 @@ void BRPeerManagerConnect(BRPeerManager *manager)
                                    _peerRelayedTx, _peerHasTx, _peerRejectedTx, _peerRelayedBlock, _peerDataNotfound,
                                    _peerSetFeePerKb, _peerRequestedTx, _peerNetworkIsReachable, _peerThreadCleanup);
                 BRPeerSetEarliestKeyTime(info->peer, manager->earliestKeyTime);
+                info->peer->forkId = forkId;
                 BRPeerConnect(info->peer);
 
                 if (BRPeerConnectStatus(info->peer) == BRPeerStatusDisconnected) {
@@ -1810,7 +1811,7 @@ void BRPeerManagerRescan(BRPeerManager *manager)
         needConnect = _BRPeerManagerRescan(manager, newLastBlock);
     }
     pthread_mutex_unlock(&manager->lock);
-    if (needConnect) BRPeerManagerConnect(manager);
+    if (needConnect) BRPeerManagerConnect(manager, 0);
 }
 
 // rescans blocks and transactions after the last hardcoded checkpoint
@@ -1828,7 +1829,7 @@ void BRPeerManagerRescanFromLastHardcodedCheckpoint(BRPeerManager *manager)
         }
     }
     pthread_mutex_unlock(&manager->lock);
-    if (needConnect) BRPeerManagerConnect(manager);
+    if (needConnect) BRPeerManagerConnect(manager, 0);
 }
 
 static BRMerkleBlock *_BRPeerManagerLookupBlockFromBlockNumber(BRPeerManager *manager, uint32_t blockNumber)
@@ -1876,7 +1877,7 @@ void BRPeerManagerRescanFromBlockNumber(BRPeerManager *manager, uint32_t blockNu
         needConnect = _BRPeerManagerRescan(manager, block);
     }
     pthread_mutex_unlock(&manager->lock);
-    if (needConnect) BRPeerManagerConnect(manager);
+    if (needConnect) BRPeerManagerConnect(manager, 0);
 }
 
 // the (unverified) best block height reported by connected peers

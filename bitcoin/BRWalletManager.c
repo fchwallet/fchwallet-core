@@ -487,7 +487,7 @@ BRWalletManagerGetPeerManager (BRWalletManager manager) {
 
 extern void
 BRWalletManagerConnect (BRWalletManager manager) {
-    BRPeerManagerConnect(manager->peerManager);
+    BRPeerManagerConnect(manager->peerManager, 0);
     manager->client.funcWalletManagerEvent (manager,
                                             (BRWalletManagerEvent) {
                                                 BITCOIN_WALLET_MANAGER_CONNECTED

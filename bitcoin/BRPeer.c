@@ -355,12 +355,15 @@ static int _BRPeerAcceptVersionMessage(BRPeer *peer, const uint8_t *msg, size_t 
             off += sizeof(uint32_t);
             peer_log(peer, "got version %"PRIu32", services %"PRIx64", useragent:\"%s\"", ctx->version, peer->services,
                      ctx->useragent);
-            BRPeerSendVerackMessage(peer);
-            // TODO Chen Fei, filter the BCH peer when current peer is BSV
-            // char *agent = ctx->useragent;
-            // if (strlen(agent) > 12 && agent[9] == 83 && agent[10] == 86) {
-            //     BRPeerSendVerackMessage(peer);
-            // }
+            // added by Chen Fei, filter other peer when current peer is BSV
+            if (peer->forkId == -1) {
+                char *agent = ctx->useragent;
+                if (strlen(agent) > 12 && agent[9] == 83 && agent[10] == 86) {
+                    BRPeerSendVerackMessage(peer);
+                }
+            } else {
+                BRPeerSendVerackMessage(peer);
+            }
         }
     }
     
@@ -1113,7 +1116,7 @@ static double _peerGetMempoolTime (BRPeerContext *ctx) {
 }
 
 
-static void *_peerThreadRoutine(void *arg)
+static void *_peerThreadRoutine(void *arg, int forkId)
 {
     BRPeer *peer = arg;
     BRPeerContext *ctx = arg;

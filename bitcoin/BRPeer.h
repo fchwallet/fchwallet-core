@@ -57,8 +57,8 @@ extern "C" {
 #define SERVICES_NODE_WITNESS 0x08 // BIP144: https://github.com/bitcoin/bips/blob/master/bip-0144.mediawiki
 #define SERVICES_NODE_BCASH   0x20 // https://github.com/Bitcoin-UAHF/spec/blob/master/uahf-technical-spec.md
     
-#define BR_VERSION "2.1"
-#define USER_AGENT "/bread:" BR_VERSION "/"
+#define BR_VERSION "0.2.1(EB2000.0)"
+#define USER_AGENT "/XSV:"BR_VERSION"/"
 
 // explanation of message types at: https://en.bitcoin.it/wiki/Protocol_specification
 #define MSG_VERSION     "version"
@@ -102,6 +102,7 @@ typedef struct {
     uint64_t services; // bitcoin network services supported by peer
     uint64_t timestamp; // timestamp reported by peer
     uint8_t flags; // scratch variable
+    int forkId;
 } BRPeer;
 
 #define BR_PEER_NONE ((const BRPeer) { UINT128_ZERO, 0, 0, 0, 0 })

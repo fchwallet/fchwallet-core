@@ -29,7 +29,7 @@
 #include "BRXsvParams.h"
 
 static const char *BRXsvDNSSeeds[] = {
-    "47.110.137.123", "172.104.64.109", NULL
+    "47.110.137.123", "172.104.64.109", "120.27.232.146", NULL
 };
 
 // blockchain checkpoints - these are also used as starting points for partial chain downloads, so they must be at

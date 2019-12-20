@@ -65,9 +65,9 @@ JNICALL Java_com_breadwallet_core_BRCorePeerManager_getConnectStatusValue
  */
 JNIEXPORT void JNICALL
 Java_com_breadwallet_core_BRCorePeerManager_connect
-        (JNIEnv *env, jobject thisObject) {
+        (JNIEnv *env, jobject thisObject, jint forkId) {
     BRPeerManager *peerManager = (BRPeerManager *) getJNIReference(env, thisObject);
-    BRPeerManagerConnect(peerManager);
+    BRPeerManagerConnect(peerManager, forkId);
 }
 
 /*

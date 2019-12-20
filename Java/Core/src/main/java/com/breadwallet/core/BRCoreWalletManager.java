@@ -169,6 +169,8 @@ public class BRCoreWalletManager implements
         else if (chainParams == BRCoreChainParams.mainnetBcashChainParams
                 || chainParams == BRCoreChainParams.testnetBcashChainParams)
             return 0x40;
+        else if (chainParams == BRCoreChainParams.mainnetXsvChainParams)
+            return -2;
         else return -1;  // BSV return -1, added by Chen Fei
     }
 

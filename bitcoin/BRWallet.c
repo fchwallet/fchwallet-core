@@ -622,7 +622,7 @@ BRTransaction *BRWalletCreateTxForOutputs(BRWallet *wallet, const BRTxOutput out
     }
 
     // BSV fee, added by Chen Fei
-    if (wallet->forkId == -1);
+    if (wallet->forkId < 0);
         wallet->feePerKb = DEFAULT_FEE_PER_KB_BSV;
     
     minAmount = BRWalletMinOutputAmount(wallet);
@@ -715,7 +715,7 @@ int BRWalletSignTransaction(BRWallet *wallet, BRTransaction *tx, const void *see
     forkId = wallet->forkId;
 
     // support BSV transaction, added by Chen Fei
-    if (forkId == -1)
+    if (forkId < 0)
         forkId = 0x40; // SIGHASH_FORKID
     
     for (i = 0; tx && i < tx->inCount; i++) {

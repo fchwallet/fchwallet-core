@@ -21,7 +21,7 @@ JNIEXPORT jint JNICALL Java_com_breadwallet_core_BRCorePeerManager_getConnectSta
  * Signature: ()V
  */
 JNIEXPORT void JNICALL Java_com_breadwallet_core_BRCorePeerManager_connect
-  (JNIEnv *, jobject);
+  (JNIEnv *, jobject, jint);
 
 /*
  * Class:     com_breadwallet_core_BRCorePeerManager

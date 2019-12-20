@@ -88,7 +88,7 @@ public class BRCorePeerManager extends BRCoreJniReference {
      * Connect to bitcoin peer-to-peer network (also call this whenever networkIsReachable()
      * status changes)
      */
-    public native void connect();
+    public native void connect(int forkId);
 
     /*
     // connect to bitcoin peer-to-peer network (also call this whenever networkIsReachable() status changes)
