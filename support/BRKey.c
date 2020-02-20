@@ -54,6 +54,7 @@
 #endif
 #include "secp256k1/src/basic-config.h"
 #include "secp256k1/src/secp256k1.c"
+#include "secp256k1/src/modules/schnorr/main_impl.h"
 #pragma clang diagnostic pop
 #pragma GCC diagnostic pop
 
@@ -369,6 +370,19 @@ size_t BRKeySign(const BRKey *key, void *sig, size_t sigLen, UInt256 md)
     }
     else sigLen = 0;
     
+    return sigLen;
+}
+
+// Chen Fei
+size_t BRKeySignSchnorr(const BRKey *key, void *sig, size_t sigLen, UInt256 md)
+{
+    assert(key != NULL);
+
+    if (secp256k1_schnorr_sign(_ctx, sig, md.u8, key->secret.u8, secp256k1_nonce_function_rfc6979, NULL)) {
+        sigLen = 64;
+    }
+    else sigLen = 0;
+
     return sigLen;
 }
 

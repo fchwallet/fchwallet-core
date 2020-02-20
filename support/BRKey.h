@@ -106,6 +106,9 @@ size_t BRKeyLegacyAddr(BRKey *key, char *addr, size_t addrLen);
 // returns 0 on failure
 size_t BRKeySign(const BRKey *key, void *sig, size_t sigLen, UInt256 md);
 
+// Chen Fei
+size_t BRKeySignSchnorr(const BRKey *key, void *sig, size_t sigLen, UInt256 md);
+
 // returns true if the signature for md is verified to have been made by key
 int BRKeyVerify(BRKey *key, UInt256 md, const void *sig, size_t sigLen);
 

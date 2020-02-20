@@ -682,7 +682,9 @@ int BRTransactionSign(BRTransaction *tx, int forkId, BRKey keys[], size_t keysCo
             size_t dataLen = _BRTransactionData(tx, data, sizeof(data), i, forkId | SIGHASH_ALL);
             
             BRSHA256_2(&md, data, dataLen);
-            sigLen = BRKeySign(&keys[j], sig, sizeof(sig) - 1, md);
+//            sigLen = BRKeySign(&keys[j], sig, sizeof(sig) - 1, md);
+// TODO Chen Fei
+            sigLen = BRKeySignSchnorr(&keys[j], sig, sizeof(sig) - 1, md);
             sig[sigLen++] = forkId | SIGHASH_ALL;
             scriptLen = BRScriptPushData(script, sizeof(script), sig, sigLen);
             scriptLen += BRScriptPushData(&script[scriptLen], sizeof(script) - scriptLen, pubKey, pkLen);
