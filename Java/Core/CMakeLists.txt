@@ -88,6 +88,10 @@ target_sources (core
                 # XSV files
                 src/main/cpp/core/xsv/BRXsvParams.h
                 src/main/cpp/core/xsv/BRXsvParams.c
+
+                # BCash files
+                src/main/cpp/core/fch/BRFchParams.h
+                src/main/cpp/core/fch/BRFchParams.c
                 )
 
 # Core JNI

@@ -59,4 +59,14 @@ public class BRCoreChainParams extends BRCoreJniReference {
             new BRCoreChainParams(createJniMainnetXsvChainParams());
 
     private static native long createJniMainnetXsvChainParams ();
+
+    public static BRCoreChainParams mainnetFchChainParams =
+            new BRCoreChainParams(createJniMainnetFchChainParams());
+
+    private static native long createJniMainnetFchChainParams();
+
+    public static BRCoreChainParams testnetFchChainParams =
+            new BRCoreChainParams(createJniTestnetFchChainParams());
+
+    private static native long createJniTestnetFchChainParams();
 }

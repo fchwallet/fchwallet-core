@@ -167,7 +167,9 @@ public class BRCoreWalletManager implements
                 || chainParams == BRCoreChainParams.testnetChainParams)
             return 0x00;
         else if (chainParams == BRCoreChainParams.mainnetBcashChainParams
-                || chainParams == BRCoreChainParams.testnetBcashChainParams)
+                || chainParams == BRCoreChainParams.testnetBcashChainParams
+                || chainParams == BRCoreChainParams.mainnetFchChainParams
+                || chainParams == BRCoreChainParams.testnetFchChainParams)
             return 0x40;
         else if (chainParams == BRCoreChainParams.mainnetXsvChainParams)
             return -2;

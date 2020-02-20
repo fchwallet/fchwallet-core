@@ -22,7 +22,8 @@ CORE_SRCS=../support/BRAddress.c \
 	../bcash/BRBCashAddr.c \
 	../bcash/BRBCashParams.c \
 	../bsv/BRBsvParams.c \
-	../xsv/BRXsvParams.c
+	../xsv/BRXsvParams.c \
+	../fch/BRFchParams.c
 
 CORE_OBJS=$(CORE_SRCS:.c=.o)
 
