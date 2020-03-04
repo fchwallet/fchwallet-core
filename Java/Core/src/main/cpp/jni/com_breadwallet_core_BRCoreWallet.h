@@ -303,6 +303,13 @@ JNIEXPORT void JNICALL Java_com_breadwallet_core_BRCoreWallet_disposeNative
 JNIEXPORT void JNICALL Java_com_breadwallet_core_BRCoreWallet_initializeNative
   (JNIEnv *, jclass);
 
+/*
+ * Class:     com_breadwallet_core_BRCoreWallet
+ * Method:    getUtxo
+ */
+JNIEXPORT jstring JNICALL Java_com_breadwallet_core_BRCoreWallet_getUtxo
+        (JNIEnv *, jobject);
+
 #ifdef __cplusplus
 }
 #endif

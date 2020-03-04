@@ -801,3 +801,20 @@ txDeleted(void *info, UInt256 txHash, int notifyUser, int recommendRescan) {
     (*env)->DeleteLocalRef(env, hash);
     (*env)->DeleteLocalRef(env, listener);
 }
+
+/*
+ * Class:     com_breadwallet_core_BRCoreWallet
+ * Method:    getUtxo
+ */
+JNIEXPORT jstring JNICALL
+Java_com_breadwallet_core_BRCoreWallet_getUtxo
+        (JNIEnv *env, jobject thisObject) {
+    BRWallet *wallet  = (BRWallet  *) getJNIReference(env, thisObject);
+    char *utxo = BRWalletUtxo(wallet);
+
+    int len = strlen(utxo);
+    char res[1 + len];
+    memcpy (res, utxo, len);
+    res[len] = '\0';
+    return (*env)->NewStringUTF (env, res);
+}

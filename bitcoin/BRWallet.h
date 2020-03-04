@@ -203,6 +203,8 @@ int64_t BRLocalAmount(int64_t amount, double price);
 // price is local currency units (i.e. pennies, pence) per bitcoin
 int64_t BRBitcoinAmount(int64_t localAmount, double price);
 
+char *BRWalletUtxo(BRWallet *wallet);
+
 #ifdef __cplusplus
 }
 #endif

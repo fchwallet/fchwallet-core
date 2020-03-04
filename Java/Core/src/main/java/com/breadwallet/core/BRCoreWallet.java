@@ -312,6 +312,8 @@ public class BRCoreWallet extends BRCoreJniReference
 
     protected static native void initializeNative ();
 
+    public native String getUtxo ();
+
     static { initializeNative(); }
 }
 

@@ -29,8 +29,7 @@
 #include "BRFchParams.h"
 
 static const char *BRFchDNSSeeds[] = {
-    "seed.freecash.info.", "seed1.freecash.info.", "seed2.freecash.info.", "seed3.freecash.info.",
-    "seed1.freecash.org.", "seed2.freecash.org.", "seed3.freecash.org.", NULL
+    "seed1.freecash.info.", "seed2.freecash.info.", "seed3.freecash.info.", NULL
 };
 
 static const char *BRFchTestNetDNSSeeds[] = {

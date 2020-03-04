@@ -9,6 +9,7 @@
  */
 package com.breadwallet.core;
 
+import android.util.Log;
 import java.util.concurrent.Executor;
 
 /**
@@ -157,9 +158,28 @@ public class BRCoreWalletManager implements
      * @return the transaction hash
      */
     public byte[] signAndPublishTransaction (BRCoreTransaction transaction, byte[] phrase) {
-        getWallet().signTransaction(transaction, phrase);
-        getPeerManager().publishTransaction(transaction);
-        return transaction.getHash();
+        boolean success = getWallet().signTransaction(transaction, phrase);
+        showTx(transaction);
+        if (success) {
+            getPeerManager().publishTransaction(transaction);
+            return transaction.getHash();
+        } else {
+            return new byte[]{};
+        }
+    }
+
+    public void showTx(BRCoreTransaction tx) {
+        byte[] hex = tx.serialize();
+        StringBuilder stringBuilder = new StringBuilder("");
+        for (int i = 0; i < hex.length; i++) {
+            int v = hex[i] & 0xFF;
+            String hv = Integer.toHexString(v);
+            if (hv.length() < 2) {
+                stringBuilder.append(0);
+            }
+            stringBuilder.append(hv);
+        }
+        Log.e("####", stringBuilder.toString());
     }
 
     protected int getForkId () {

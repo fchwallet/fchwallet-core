@@ -639,7 +639,7 @@ BRTransaction *BRWalletCreateTxForOutputs(BRWallet *wallet, const BRTxOutput out
         if (! tx || o->n >= tx->outCount) continue;
         BRTransactionAddInput(transaction, tx->txHash, o->n, tx->outputs[o->n].amount,
                               tx->outputs[o->n].script, tx->outputs[o->n].scriptLen, NULL, 0, NULL, 0, TXIN_SEQUENCE);
-        
+
         if (BRTransactionVSize(transaction) + TX_OUTPUT_SIZE > TX_MAX_SIZE) { // transaction size-in-bytes too large
             BRTransactionFree(transaction);
             transaction = NULL;
@@ -1273,4 +1273,72 @@ int64_t BRBitcoinAmount(int64_t localAmount, double price)
     }
     
     return (localAmount < 0) ? -amount : amount;
+}
+
+char* uint2char(int src) {
+    int temp = -1;
+    int tv = src;
+    int length = 1;
+    while ((tv = tv/10) > 0) {
+        length++;
+    }
+
+    tv = src;
+    char* des = (char*)malloc(sizeof(char)*(length + 1));
+    memset(des, 0, length + 1);
+    for (int i = 0; i < length; i++) {
+        int v = 1;
+        for (int j = length - i; j > 1; j--) {
+            v = v * 10;
+        }
+        temp = tv/(v);
+        des[i] = (temp + 48);
+        if (temp == 0) {
+            temp = 1;
+        }
+        tv = tv % (temp*v);
+    }
+    des[length] = '\0';
+    return des;
+}
+
+char *BRWalletUtxo(BRWallet *wallet) {
+    BRTransaction *tx = BRTransactionNew();
+    size_t i;
+    BRUTXO *o;
+
+    assert(wallet != NULL);
+    pthread_mutex_lock(&wallet->lock);
+
+    int count = array_count(wallet->utxos);
+    if (count == 0) {
+        pthread_mutex_unlock(&wallet->lock);
+        return "";
+    }
+
+    char res[120 * count];
+    strcpy(res, "");
+    for (i = 0; i < count; i++) {
+        o = &wallet->utxos[i];
+        tx = BRSetGet(wallet->allTx, o);
+        if (!tx || o->n >= tx->outCount)
+            continue;
+
+        strcat(res, u256hex(tx->txHash));
+        strcat(res, ",");
+        strcat(res, tx->outputs[o->n].address);
+        strcat(res, ",");
+        char *amount = uint2char(tx->outputs[o->n].amount);
+        strcat(res, amount);
+        strcat(res, ",");
+        char *n = uint2char(o->n);
+        strcat(res, n);
+
+        if (i != count - 1) {
+            strcat(res, ",");
+        }
+    }
+
+    pthread_mutex_unlock(&wallet->lock);
+    return res;
 }
