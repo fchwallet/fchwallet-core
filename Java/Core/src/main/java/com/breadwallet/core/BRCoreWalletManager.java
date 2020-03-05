@@ -366,6 +366,8 @@ public class BRCoreWalletManager implements
             return "Bsv Testnet";
         else if (chainParams == BRCoreChainParams.mainnetXsvChainParams)
             return "Xsv Mainnet";
+        else if (chainParams == BRCoreChainParams.mainnetFchChainParams)
+            return "Fch Mainnet";
         return "Unknown";
     }
     // ============================================================================================
