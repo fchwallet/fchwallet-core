@@ -205,6 +205,9 @@ int64_t BRBitcoinAmount(int64_t localAmount, double price);
 
 char *BRWalletUtxo(BRWallet *wallet);
 
+BRKey *BRWalletFindKey(BRWallet *wallet, uint8_t *script, size_t scriptLen, const void *seed,
+                       size_t seedLen);
+
 #ifdef __cplusplus
 }
 #endif

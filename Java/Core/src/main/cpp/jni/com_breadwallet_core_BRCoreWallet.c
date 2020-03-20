@@ -818,3 +818,47 @@ Java_com_breadwallet_core_BRCoreWallet_getUtxo
     res[len] = '\0';
     return (*env)->NewStringUTF (env, res);
 }
+
+/*
+ * Class:     com_breadwallet_core_BRCoreWallet
+ * Method:    signMessage
+ */
+JNIEXPORT jbyteArray JNICALL
+Java_com_breadwallet_core_BRCoreWallet_signMessage
+        (JNIEnv *env, jobject thisObject,
+         jbyteArray scriptByteArray,
+         jbyteArray phraseByteArray,
+         jbyteArray dataByteArray) {
+    BRWallet *wallet = (BRWallet *) getJNIReference(env, thisObject);
+
+    size_t phraseLen = (size_t) (*env)->GetArrayLength(env, phraseByteArray);
+    const jbyte *phraseBytes = (const jbyte *) (*env)->GetByteArrayElements(env, phraseByteArray, 0);
+
+    char phrase [1 + phraseLen];
+    memcpy (phrase, phraseBytes, phraseLen);
+    phrase[phraseLen] = '\0';
+
+    UInt512 seed;
+    BRBIP39DeriveKey (&seed, phrase, NULL);
+
+    uint8_t *script = (uint8_t *) (*env)->GetByteArrayElements(env, scriptByteArray, 0);
+    size_t scriptLen = (size_t) (*env)->GetArrayLength(env, scriptByteArray);
+
+    BRKey *key = BRWalletFindKey(wallet, script, scriptLen, &seed, sizeof(seed));
+
+    uint8_t *data = (uint8_t *) (*env)->GetByteArrayElements(env, dataByteArray, 0);
+    UInt256 md32 = UInt256Get(data);
+
+    size_t sigLen = BRKeyCompactSign(key, NULL, 0, md32);
+    assert (65 == sigLen);
+
+    uint8_t compactSig[sigLen];
+    sigLen = BRKeyCompactSign(key, compactSig, sizeof(compactSig), md32);
+
+    jbyteArray result = (*env)->NewByteArray(env, (jsize) sigLen);
+    (*env)->SetByteArrayRegion(env, result, 0, (jsize) sigLen, (const jbyte *) compactSig);
+
+    (*env)->ReleaseByteArrayElements(env, dataByteArray, (jbyte*) data, 0);
+
+    return result;
+}

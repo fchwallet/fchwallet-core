@@ -1316,7 +1316,7 @@ char *BRWalletUtxo(BRWallet *wallet) {
         return "";
     }
 
-    char res[120 * count];
+    char res[140 * count];
     strcpy(res, "");
     for (i = 0; i < count; i++) {
         o = &wallet->utxos[i];
@@ -1341,4 +1341,26 @@ char *BRWalletUtxo(BRWallet *wallet) {
 
     pthread_mutex_unlock(&wallet->lock);
     return res;
+}
+
+BRKey *BRWalletFindKey(BRWallet *wallet, uint8_t *script, size_t scriptLen, const void *seed, size_t seedLen){
+    uint32_t j;
+    size_t idx = 0;
+
+    assert(wallet != NULL);
+    pthread_mutex_lock(&wallet->lock);
+
+    const uint8_t *pkh = BRScriptPKH(script, scriptLen);
+    for (j = (uint32_t)array_count(wallet->externalChain); pkh && j > 0; j--) {
+        if (UInt160Eq(UInt160Get(pkh), wallet->externalChain[j - 1])) {
+            idx = j - 1;
+            break;
+        }
+    }
+    pthread_mutex_unlock(&wallet->lock);
+
+    BRKey *key = (BRKey *) calloc (1, sizeof(BRKey));
+    BRBIP32PrivKey(key, seed, seedLen, 0, (uint32_t) idx);
+
+    return key;
 }
