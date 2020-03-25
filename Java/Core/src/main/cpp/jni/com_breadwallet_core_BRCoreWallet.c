@@ -862,3 +862,29 @@ Java_com_breadwallet_core_BRCoreWallet_signMessage
 
     return result;
 }
+
+/*
+ * Class:     com_breadwallet_core_BRCoreWallet
+ * Method:    verifyMessage
+ */
+JNIEXPORT jstring JNICALL
+Java_com_breadwallet_core_BRCoreWallet_verifyMessage
+        (JNIEnv *env, jobject thisObject,
+         jbyteArray dataByteArray,
+         jbyteArray signByteArray) {
+    BRKey *key = (BRKey *) calloc(1, sizeof(BRKey));
+
+    uint8_t *data = (uint8_t *) (*env)->GetByteArrayElements(env, dataByteArray, 0);
+    UInt256 md32 = UInt256Get(data);
+
+    size_t sigLen = (size_t) (*env)->GetArrayLength(env, signByteArray);
+    uint8_t *sig = (uint8_t *) (*env)->GetByteArrayElements(env, signByteArray, 0);
+
+    BRKeyRecoverPubKey(key, md32, sig, sigLen);
+
+    assert(key != NULL);
+    BRAddress *address = (BRAddress *) calloc (1, sizeof (BRAddress));
+    BRKeyLegacyAddr(key, address->s, sizeof(address->s));
+
+    return (*env)->NewStringUTF (env, address->s);
+}

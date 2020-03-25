@@ -316,6 +316,8 @@ public class BRCoreWallet extends BRCoreJniReference
 
     public native byte[] signMessage (byte[] script, byte[] phrase, byte[] data);
 
+    public native String verifyMessage (byte[] data, byte[] signature);
+
     static { initializeNative(); }
 }
 

@@ -317,6 +317,13 @@ JNIEXPORT jstring JNICALL Java_com_breadwallet_core_BRCoreWallet_getUtxo
 JNIEXPORT jbyteArray JNICALL Java_com_breadwallet_core_BRCoreWallet_signMessage
         (JNIEnv *, jobject, jbyteArray, jbyteArray, jbyteArray);
 
+/*
+ * Class:     com_breadwallet_core_BRCoreWallet
+ * Method:    verifyMessage
+ */
+JNIEXPORT jbyteArray JNICALL Java_com_breadwallet_core_BRCoreWallet_verifyMessage
+        (JNIEnv *, jobject, jbyteArray, jbyteArray);
+
 #ifdef __cplusplus
 }
 #endif
